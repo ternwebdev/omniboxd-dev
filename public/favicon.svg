@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="100%" height="100%">
+  <defs>
+    <!-- Clip circles for exact lens intersections -->
+    <clipPath id="isoClip1">
+      <circle cx="245" cy="300" r="118" />
+    </clipPath>
+    <clipPath id="isoClip2">
+      <circle cx="415" cy="300" r="118" />
+    </clipPath>
+    <clipPath id="isoClip3">
+      <circle cx="585" cy="300" r="118" />
+    </clipPath>
+  </defs>
+
+  <!-- Outer circle border -->
+  <circle cx="500" cy="500" r="485" fill="#FFFFFF" stroke="#1F2428" stroke-width="4" />
+
+  <!-- 4 Colored Circles with white lens intersections -->
+  <!-- 1. Red circle -->
+  <circle cx="245" cy="300" r="118" fill="#E81E25" />
+
+  <!-- 2. Blue circle -->
+  <circle cx="415" cy="300" r="118" fill="#1E52E8" />
+
+  <!-- Intersection 1 & 2 (White) -->
+  <circle cx="415" cy="300" r="118" clip-path="url(#isoClip1)" fill="#FFFFFF" />
+
+  <!-- 3. Green circle -->
+  <circle cx="585" cy="300" r="118" fill="#166228" />
+
+  <!-- Intersection 2 & 3 (White) -->
+  <circle cx="585" cy="300" r="118" clip-path="url(#isoClip2)" fill="#FFFFFF" />
+
+  <!-- 4. Yellow circle -->
+  <circle cx="755" cy="300" r="118" fill="#FCC21B" />
+
+  <!-- Intersection 3 & 4 (White) -->
+  <circle cx="755" cy="300" r="118" clip-path="url(#isoClip3)" fill="#FFFFFF" />
+
+  <!-- Omnibus Illustration (3/4 perspective bus) -->
+  <g id="omnibus-body" fill="#1F2327" stroke="#1F2327">
+    <!-- Bus main body outline -->
+    <path d="M 520 455 C 570 458, 680 475, 715 490 C 730 496, 735 510, 737 540 L 748 720 C 748 740, 738 755, 715 760 L 645 765 C 640 765, 630 780, 610 812 C 600 816, 560 816, 550 810 C 540 805, 532 795, 532 788 L 470 790 L 468 810 C 465 825, 420 832, 403 826 C 392 820, 393 795, 395 790 L 295 785 L 294 797 C 290 803, 260 804, 256 798 C 252 790, 252 778, 254 773 L 220 770 C 218 765, 218 615, 220 610 C 225 605, 470 515, 510 498 Z" />
+
+    <!-- Right Side Mirror -->
+    <path d="M 735 558 L 760 564 L 762 570 L 762 615 C 762 622, 758 622, 758 615 L 758 578 L 738 572 Z" fill="#1F2327" />
+
+    <!-- Windshield glass (White) -->
+    <path d="M 525 532 L 720 550 C 727 551, 730 560, 728 580 L 715 715 C 713 724, 705 727, 690 727 L 522 715 C 515 714, 510 705, 512 690 L 525 532 Z" fill="#FFFFFF" stroke="#1F2327" stroke-width="4" />
+
+    <!-- Destination Sign Box (Cartel de destino en el techo) -->
+    <rect x="562" y="482" width="140" height="42" rx="7" fill="#FFFFFF" stroke="#1F2327" stroke-width="5" />
+
+    <!-- Windshield Wipers -->
+    <path d="M 645 630 L 585 710 M 645 630 L 642 710 M 655 630 L 710 714" stroke="#1F2327" stroke-width="6" stroke-linecap="round" fill="none" />
+
+    <!-- Front Headlights (White slits/curves) -->
+    <path d="M 524 728 Q 545 745 588 760 C 565 762, 535 754, 524 728 Z" fill="#FFFFFF" />
+    <path d="M 735 733 Q 724 748 708 760 C 718 758, 730 748, 735 733 Z" fill="#FFFFFF" />
+
+    <!-- Front door (puerta delantera con vidrios) -->
+    <rect x="462" y="530" width="22" height="258" fill="#1F2327" />
+    <rect x="486" y="590" width="20" height="198" fill="#FFFFFF" stroke="#1F2327" stroke-width="4" />
+
+    <!-- Side Passenger Windows (ventanillas laterales) -->
+    <!-- Window 1 -->
+    <polygon points="398,532 454,528 454,642 398,646" fill="#FFFFFF" stroke="#1F2327" stroke-width="4" />
+    <!-- Window 2 -->
+    <polygon points="345,556 392,544 392,652 345,660" fill="#FFFFFF" stroke="#1F2327" stroke-width="4" />
+    <!-- Central double doors (puertas centrales) -->
+    <polygon points="300,578 320,572 320,774 300,773" fill="#FFFFFF" stroke="#1F2327" stroke-width="3" />
+    <polygon points="322,572 342,566 342,775 322,774" fill="#FFFFFF" stroke="#1F2327" stroke-width="3" />
+    <!-- Window 3 -->
+    <polygon points="276,595 296,588 296,669 276,674" fill="#FFFFFF" stroke="#1F2327" stroke-width="4" />
+    <!-- Window 4 -->
+    <polygon points="250,608 272,600 272,678 250,682" fill="#FFFFFF" stroke="#1F2327" stroke-width="4" />
+    <!-- Window 5 -->
+    <polygon points="228,618 246,612 246,684 228,687" fill="#FFFFFF" stroke="#1F2327" stroke-width="4" />
+
+    <!-- Wheels (Ruedas delantera y trasera) -->
+    <!-- Front wheel -->
+    <ellipse cx="425" cy="775" rx="24" ry="46" fill="#FFFFFF" stroke="#1F2327" stroke-width="12" />
+    <ellipse cx="425" cy="775" rx="8" ry="18" fill="#1F2327" />
+
+    <!-- Rear wheel -->
+    <ellipse cx="266" cy="762" rx="14" ry="30" fill="#FFFFFF" stroke="#1F2327" stroke-width="8" />
+    <ellipse cx="266" cy="762" rx="4" ry="10" fill="#1F2327" />
+  </g>
+</svg>

@@ -1,0 +1,8 @@
+{
+  "name": "omniboxd",
+  "description": "Diario de viajes y reseñas de ómnibus uruguayos al estilo Letterboxd con omniposts, chiflidos, bajadas, charlas de parada y transbordos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

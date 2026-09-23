@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- 5 ómnibus en abanico, rotados -->
+  <g transform="translate(32,44)">
+    <g transform="rotate(-30)">
+      <rect x="-14" y="-10" width="28" height="14" rx="2" fill="#8B5CF6"/>
+      <rect x="-10" y="-7" width="6" height="4" rx="1" fill="#E9D5FF"/>
+      <rect x="-2" y="-7" width="6" height="4" rx="1" fill="#E9D5FF"/>
+      <rect x="6" y="-7" width="6" height="4" rx="1" fill="#E9D5FF"/>
+    </g>
+    <g transform="rotate(-15)">
+      <rect x="-14" y="-10" width="28" height="14" rx="2" fill="#FBBF24"/>
+      <rect x="-10" y="-7" width="6" height="4" rx="1" fill="#FEF3C7"/>
+      <rect x="-2" y="-7" width="6" height="4" rx="1" fill="#FEF3C7"/>
+      <rect x="6" y="-7" width="6" height="4" rx="1" fill="#FEF3C7"/>
+    </g>
+    <g transform="rotate(0)">
+      <rect x="-14" y="-10" width="28" height="14" rx="2" fill=" #146321"/>
+      <rect x="-10" y="-7" width="6" height="4" rx="1" fill="#BBF7D0"/>
+      <rect x="-2" y="-7" width="6" height="4" rx="1" fill="#BBF7D0"/>
+      <rect x="6" y="-7" width="6" height="4" rx="1" fill="#BBF7D0"/>
+    </g>
+    <g transform="rotate(15)">
+      <rect x="-14" y="-10" width="28" height="14" rx="2" fill="#3B82F6"/>
+      <rect x="-10" y="-7" width="6" height="4" rx="1" fill="#BFDBFE"/>
+      <rect x="-2" y="-7" width="6" height="4" rx="1" fill="#BFDBFE"/>
+      <rect x="6" y="-7" width="6" height="4" rx="1" fill="#BFDBFE"/>
+    </g>
+    <g transform="rotate(30)">
+      <rect x="-14" y="-10" width="28" height="14" rx="2" fill="#ff0000"/>
+      <rect x="-10" y="-7" width="6" height="4" rx="1" fill="#FEE2E2"/>
+      <rect x="-2" y="-7" width="6" height="4" rx="1" fill="#FEE2E2"/>
+      <rect x="6" y="-7" width="6" height="4" rx="1" fill="#FEE2E2"/>
+    </g>
+  </g>
+</svg>

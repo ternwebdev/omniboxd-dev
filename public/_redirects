@@ -1,0 +1,23 @@
+# SPA redirects for omniboxd on Netlify
+/inicio       /index.html   200
+/inicio/      /index.html   200
+/perfil       /index.html   200
+/perfil/      /index.html   200
+/buscar       /index.html   200
+/buscar/      /index.html   200
+/entrar       /index.html   200
+/entrar/      /index.html   200
+/linea        /index.html   200
+/linea/       /index.html   200
+/admin        /index.html   200
+/admin/       /index.html   200
+/manual       /index.html   200
+/manual/      /index.html   200
+/novedades    /index.html   200
+/novedades/   /index.html   200
+
+# Legacy HTML bookmarks backward compatibility
+/html/*       /index.html   200
+
+# Catch-all for SPA client routing
+/*            /index.html   200

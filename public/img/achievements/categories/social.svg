@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Fondo hexagonal (para diferenciarlo y darle toque "social/red") -->
+  <path d="M 64 8 L 110 32 L 110 96 L 64 120 L 18 96 L 18 32 Z" fill="#fff" stroke="#ffd700" stroke-width="4"/>
+  <path d="M 64 16 L 102 36 L 102 92 L 64 112 L 26 92 L 26 36 Z" fill="none" stroke="#2553eb" stroke-width="1" stroke-dasharray="3,3"/>
+  
+  <!-- Líneas de conexión (la red social) -->
+  <line x1="64" y1="64" x2="36" y2="36" stroke="#cbd5e1" stroke-width="3"/>
+  <line x1="64" y1="64" x2="92" y2="36" stroke="#cbd5e1" stroke-width="3"/>
+  <line x1="64" y1="64" x2="36" y2="92" stroke="#cbd5e1" stroke-width="3"/>
+  <line x1="64" y1="64" x2="92" y2="92" stroke="#cbd5e1" stroke-width="3"/>
+  
+  <!-- Nodos de usuarios (Comunidad) -->
+  <!-- Usuario Arriba Izquierda -->
+  <circle cx="36" cy="36" r="12" fill="#ff0000"/>
+  <circle cx="36" cy="32" r="4" fill="#fff"/>
+  <path d="M 28 44 Q 36 38, 44 44 L 44 48 L 28 48 Z" fill="#fff"/>
+  
+  <!-- Usuario Arriba Derecha -->
+  <circle cx="92" cy="36" r="12" fill="#146321"/>
+  <circle cx="92" cy="32" r="4" fill="#fff"/>
+  <path d="M 84 44 Q 92 38, 100 44 L 100 48 L 84 48 Z" fill="#fff"/>
+  
+  <!-- Usuario Abajo Izquierda -->
+  <circle cx="36" cy="92" r="12" fill="#2553eb"/>
+  <circle cx="36" cy="88" r="4" fill="#fff"/>
+  <path d="M 28 100 Q 36 94, 44 100 L 44 104 L 28 104 Z" fill="#fff"/>
+  
+  <!-- Usuario Abajo Derecha -->
+  <circle cx="92" cy="92" r="12" fill="#ffd700"/>
+  <circle cx="92" cy="88" r="4" fill="#fff"/>
+  <path d="M 84 100 Q 92 94, 100 100 L 100 104 L 84 104 Z" fill="#fff"/>
+  
+  <!-- Nodo Central (Tú / El usuario principal) -->
+  <circle cx="64" cy="64" r="18" fill="#fff" stroke="#ff0000" stroke-width="3"/>
+  
+  <!-- Globo de chat en el centro (representa menciones/charlas) -->
+  <path d="M 52 58 L 76 58 Q 80 58, 80 62 L 80 70 Q 80 74, 76 74 L 68 74 L 64 80 L 60 74 L 52 74 Q 48 74, 48 70 L 48 62 Q 48 58, 52 58 Z" fill="#2553eb"/>
+  
+  <!-- Puntos de "typing" o interacción dentro del chat -->
+  <circle cx="58" cy="66" r="2" fill="#ffd700"/>
+  <circle cx="64" cy="66" r="2" fill="#ffd700"/>
+  <circle cx="70" cy="66" r="2" fill="#ffd700"/>
+</svg>

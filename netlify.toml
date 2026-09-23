@@ -1,0 +1,124 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# ── Redirecciones SPA ───────────────────────────────────────
+[[redirects]]
+  from = "/inicio"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/inicio/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/perfil"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/perfil/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/buscar"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/buscar/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/entrar"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/entrar/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/linea"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/linea/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/manual"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/manual/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/novedades"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/novedades/"
+  to = "/index.html"
+  status = 200
+
+# Compatibilidad con links anteriores a /html/*.html
+[[redirects]]
+  from = "/html/*"
+  to = "/index.html"
+  status = 200
+
+# Catch-all para SPA
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# ── Cabeceras de seguridad y performance ───────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net; frame-src https://docs.google.com https://*.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+
+# Cache estáticos Vite
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/img/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, immutable"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
