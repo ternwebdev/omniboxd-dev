@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Escudo de fondo -->
+  <path d="M 64 10 L 110 26 L 110 70 Q 110 100, 64 118 Q 18 100, 18 70 L 18 26 Z" fill="#fff" stroke="#ffd700" stroke-width="4"/>
+  <path d="M 64 18 L 102 32 L 102 68 Q 102 94, 64 110 Q 26 94, 26 68 L 26 32 Z" fill="#2553eb" opacity="0.1"/>
+  
+  <!-- Escudo interior -->
+  <path d="M 64 28 L 96 40 L 96 68 Q 96 90, 64 104 Q 32 90, 32 68 L 32 40 Z" fill="#fff" stroke="#ff0000" stroke-width="2"/>
+  
+  <!-- 4 elementos climáticos en los cuadrantes -->
+  <!-- Sol (arriba) -->
+  <circle cx="64" cy="44" r="8" fill="#ffd700"/>
+  <line x1="64" y1="32" x2="64" y2="36" stroke="#ffd700" stroke-width="2"/>
+  <line x1="64" y1="52" x2="64" y2="56" stroke="#ffd700" stroke-width="2"/>
+  <line x1="52" y1="44" x2="56" y2="44" stroke="#ffd700" stroke-width="2"/>
+  <line x1="72" y1="44" x2="76" y2="44" stroke="#ffd700" stroke-width="2"/>
+  
+  <!-- Lluvia (derecha) -->
+  <path d="M 82 64 Q 82 58, 88 58 Q 94 58, 94 64 L 94 66 L 82 66 Z" fill="#2553eb"/>
+  <line x1="85" y1="68" x2="84" y2="74" stroke="#2553eb" stroke-width="1.5"/>
+  <line x1="88" y1="68" x2="88" y2="76" stroke="#2553eb" stroke-width="1.5"/>
+  <line x1="91" y1="68" x2="90" y2="74" stroke="#2553eb" stroke-width="1.5"/>
+  
+  <!-- Nieve (abajo) -->
+  <line x1="64" y1="82" x2="64" y2="92" stroke="#2553eb" stroke-width="2"/>
+  <line x1="59" y1="85" x2="69" y2="89" stroke="#2553eb" stroke-width="2"/>
+  <line x1="59" y1="89" x2="69" y2="85" stroke="#2553eb" stroke-width="2"/>
+  <circle cx="64" cy="82" r="1.5" fill="#2553eb"/>
+  <circle cx="64" cy="92" r="1.5" fill="#2553eb"/>
+  
+  <!-- Viento (izquierda) -->
+  <path d="M 38 64 Q 44 60, 50 64 Q 44 68, 38 64" fill="none" stroke="#146321" stroke-width="2"/>
+  <path d="M 40 70 Q 46 66, 52 70" fill="none" stroke="#146321" stroke-width="2"/>
+  <path d="M 36 76 Q 42 72, 48 76" fill="none" stroke="#146321" stroke-width="2"/>
+  
+  <!-- Check central -->
+  <circle cx="64" cy="64" r="12" fill="#146321"/>
+  <path d="M 58 64 L 62 68 L 70 60" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+</svg>

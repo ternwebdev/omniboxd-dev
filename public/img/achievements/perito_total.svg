@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Diana/target -->
+  <circle cx="32" cy="34" r="24" fill="#FEE2E2" stroke="#ff0000" stroke-width="2"/>
+  <circle cx="32" cy="34" r="18" fill="#FEF3C7" stroke="#ffd700" stroke-width="2"/>
+  <circle cx="32" cy="34" r="12" fill="#DCFCE7" stroke="#146321" stroke-width="2"/>
+  <circle cx="32" cy="34" r="6" fill="#DBEAFE" stroke="#2553eb" stroke-width="2"/>
+  <!-- Ómnibus en el centro (en el blanco) -->
+  <rect x="26" y="30" width="12" height="7" rx="1" fill="#1E3A5F"/>
+  <rect x="28" y="31" width="3" height="3" rx="0.5" fill="#DBEAFE"/>
+  <rect x="33" y="31" width="3" height="3" rx="0.5" fill="#DBEAFE"/>
+  <circle cx="29" cy="38" r="1.5" fill="#475569"/>
+  <circle cx="35" cy="38" r="1.5" fill="#475569"/>
+  <!-- Estrellas laterales -->
+  <path d="M 10 34 L 12 30 L 14 34 L 10 36 Z" fill="#FBBF24"/>
+  <path d="M 50 34 L 52 30 L 54 34 L 50 36 Z" fill="#FBBF24"/>
+  <!-- Texto "100" pequeño -->
+  <text x="32" y="20" font-size="18" text-anchor="middle">​​​​​💯​</text>
+</svg>

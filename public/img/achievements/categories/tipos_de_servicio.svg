@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Fondo circular con borde dorado -->
+  <circle cx="64" cy="64" r="60" fill="#fff" stroke="#ffd700" stroke-width="4"/>
+  <circle cx="64" cy="64" r="54" fill="none" stroke="#2553eb" stroke-width="1" stroke-dasharray="3,3"/>
+  
+  <!-- Centro (Hub principal) -->
+  <circle cx="64" cy="64" r="16" fill="#2553eb" stroke="#ff0000" stroke-width="2"/>
+  <circle cx="64" cy="64" r="8" fill="#ffd700"/>
+  
+  <!-- 6 Brazos de rutas (Tipos de servicio) -->
+  <!-- 1. Diferencial (Arriba - Estrella) -->
+  <line x1="64" y1="48" x2="64" y2="24" stroke="#ffd700" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 64 16 L 66 20 L 70 20 L 67 23 L 68 27 L 64 25 L 60 27 L 61 23 L 58 20 L 62 20 Z" fill="#ff0000"/>
+  
+  <!-- 2. Local (Arriba Derecha - Casa) -->
+  <line x1="78" y1="56" x2="96" y2="40" stroke="#ff0000" stroke-width="3" stroke-linecap="round"/>
+  <rect x="92" y="34" width="10" height="8" fill="#146321"/>
+  <polygon points="90,34 97,26 104,34" fill="#ffd700"/>
+  
+  <!-- 3. Suburbano (Abajo Derecha - Vías) -->
+  <line x1="78" y1="72" x2="96" y2="88" stroke="#146321" stroke-width="3" stroke-linecap="round"/>
+  <line x1="92" y1="84" x2="102" y2="94" stroke="#2553eb" stroke-width="2"/>
+  <line x1="96" y1="80" x2="106" y2="90" stroke="#2553eb" stroke-width="2"/>
+  <line x1="94" y1="88" x2="98" y2="84" stroke="#2553eb" stroke-width="1.5"/>
+  <line x1="98" y1="92" x2="102" y2="88" stroke="#2553eb" stroke-width="1.5"/>
+  
+  <!-- 4. Urbano (Abajo - Ómnibus) -->
+  <line x1="64" y1="80" x2="64" y2="104" stroke="#2553eb" stroke-width="3" stroke-linecap="round"/>
+  <rect x="56" y="102" width="16" height="10" rx="2" fill="#ff0000"/>
+  <circle cx="60" cy="114" r="2" fill="#333"/>
+  <circle cx="68" cy="114" r="2" fill="#333"/>
+  
+  <!-- 5. Turístico (Abajo Izquierda - Pin de mapa) -->
+  <line x1="50" y1="72" x2="32" y2="88" stroke="#ff0000" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 32 82 C 28 82, 26 85, 26 88 C 26 93, 32 98, 32 98 C 32 98, 38 93, 38 88 C 38 85, 36 82, 32 82 Z" fill="#146321"/>
+  <circle cx="32" cy="87" r="2" fill="#fff"/>
+  
+  <!-- 6. Departamental (Arriba Izquierda - Edificio) -->
+  <line x1="50" y1="56" x2="32" y2="40" stroke="#146321" stroke-width="3" stroke-linecap="round"/>
+  <rect x="24" y="28" width="12" height="14" fill="#2553eb"/>
+  <rect x="27" y="31" width="3" height="3" fill="#fff"/>
+  <rect x="33" y="31" width="3" height="3" fill="#fff"/>
+  <rect x="27" y="36" width="3" height="3" fill="#fff"/>
+  <rect x="33" y="36" width="3" height="3" fill="#fff"/>
+</svg>
