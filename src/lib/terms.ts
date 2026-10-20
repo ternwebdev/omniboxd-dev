@@ -23,17 +23,54 @@ export function hasAcceptedCurrentTerms(user: { terms_version?: string | null } 
 import { supabase } from './supabase';
 
 export async function acceptTerms(userId: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('users')
-    .update({
-      terms_accepted_at: new Date().toISOString(),
-      terms_version: TERMS_VERSION
-    })
-    .eq('id', userId);
+  try {
+    // 1. Obtener la sesión real (fuente de verdad)
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
-  if (error) {
-    console.error('Error al aceptar términos:', error.message);
+    if (authError) {
+      console.error('[acceptTerms] auth.getUser error:', authError.message);
+    }
+
+    if (!authUser) {
+      console.error('[acceptTerms] No hay sesión activa');
+      return false;
+    }
+
+    // 2. Usar el ID autenticado real, no el que viene de la prop
+    const effectiveUserId = authUser.id;
+
+    console.log('[acceptTerms] userId prop:', userId, '| authUser.id:', effectiveUserId);
+
+    // 3. Hacer el UPDATE
+    const { data, error, status } = await supabase
+      .from('users')
+      .update({
+        terms_accepted_at: new Date().toISOString(),
+        terms_version: TERMS_VERSION
+      })
+      .eq('id', effectiveUserId)
+      .select('id, terms_version, terms_accepted_at');
+
+    if (error) {
+      console.error('[acceptTerms] Error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        status
+      });
+      return false;
+    }
+
+    if (!data || data.length === 0) {
+      console.error('[acceptTerms] UPDATE no afectó filas');
+      return false;
+    }
+
+    console.log('[acceptTerms] OK:', data[0]);
+    return true;
+  } catch (err: any) {
+    console.error('[acceptTerms] Catch:', err);
     return false;
   }
-  return true;
 }

@@ -484,13 +484,13 @@ export const NewReviewModal: React.FC<NewReviewModalProps> = ({
 
   return (
     <div 
-      onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto animate-in fade-in duration-150 touch-none"
-    >
+  onClick={onClose}
+  className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto animate-in fade-in duration-150"
+>
       <div 
-        onClick={(e) => e.stopPropagation()}
-        className="bg-[var(--surface)] border border-[var(--border)] rounded-t-2xl sm:rounded-2xl max-w-lg md:max-w-2xl lg:max-w-3xl w-full p-4 sm:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto overscroll-contain touch-auto modal-scroll-area"
-      >
+  onClick={(e) => e.stopPropagation()}
+  className="bg-[var(--surface)] border border-[var(--border)] rounded-t-2xl sm:rounded-2xl max-w-lg md:max-w-2xl lg:max-w-3xl w-full p-4 sm:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto overscroll-contain touch-auto modal-scroll-area"
+>
         {/* Natural clean header */}
         <div className="flex items-center justify-between pb-3 mb-4 border-b border-[var(--border)]">
           <div className="flex items-center gap-2">
@@ -522,7 +522,7 @@ export const NewReviewModal: React.FC<NewReviewModalProps> = ({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-                Tipo (Opcional)
+                Tipo <span className="text-[var(--text-dim)]">(Opcional)</span>
               </label>
               <select
                 value={selectedType}
@@ -530,7 +530,7 @@ export const NewReviewModal: React.FC<NewReviewModalProps> = ({
                   setSelectedType(e.target.value);
                   setSelectedLineId('');
                 }}
-                className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--text)] focus:border-amber-400 focus:outline-none capitalize"
+                className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--text)] focus:border-amber-400 focus:outline-none"
               >
                 <option value="">Todos los tipos</option>
                 {availableTypes.map((t) => (
@@ -543,7 +543,7 @@ export const NewReviewModal: React.FC<NewReviewModalProps> = ({
 
             <div>
               <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-                Empresa (Opcional)
+                Empresa <span className="text-[var(--text-dim)]">(Opcional)</span>
               </label>
               <select
                 value={selectedCompany}
@@ -569,7 +569,7 @@ export const NewReviewModal: React.FC<NewReviewModalProps> = ({
           {/* Line Selection (Cleaned up, no routeHint clutter) */}
           <div>
             <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-              Línea de Ómnibus *
+              Línea de Ómnibus <span className="required-asterisk">*</span>
             </label>
             <div className="space-y-2">
               <input
@@ -603,7 +603,7 @@ export const NewReviewModal: React.FC<NewReviewModalProps> = ({
                 selectedLineId ? 'text-amber-400' : 'text-[var(--text-muted)]'
               }`}
             >
-              Recorrido / Destino {availableRoutes.length > 1 ? '*' : '(Opcional)'}
+              Recorrido / Destino {availableRoutes.length > 1 ? <span className="required-asterisk">*</span> : '(Opcional)'}
             </label>
             <select
               value={selectedRoute}
@@ -636,77 +636,104 @@ export const NewReviewModal: React.FC<NewReviewModalProps> = ({
           </div>
 
           {/* Bus coche number & Trip date with mode selector (Solo fecha vs Fecha y hora) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-                Nº de coche (Opcional)
-              </label>
-              <input
-                type="text"
-                value={vehicleNumber}
-                onChange={(e) => setVehicleNumber(e.target.value)}
-                placeholder="Ej: 1042"
-                maxLength={16}
-                className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--text)] focus:border-amber-400 focus:outline-none"
-              />
-            </div>
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+  {/* Nº de coche */}
+  <div>
+    <div className="flex items-center justify-between mb-1">
+      <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+        Nº de coche <span className="text-[var(--text-dim)]">(Opcional)</span>
+      </label>
+      {/* Spacer invisible que clona EXACTAMENTE el toggle del otro bloque */}
+      <div className="hidden sm:inline-flex rounded-md border border-transparent p-0.5 text-[10px] opacity-0 pointer-events-none select-none" aria-hidden="true">
+        <span className="px-1.5 py-0.5 font-medium">Solo fecha</span>
+        <span className="px-1.5 py-0.5 font-medium">Fecha y hora</span>
+      </div>
+    </div>
+    <input
+      type="text"
+      value={vehicleNumber}
+      onChange={(e) => setVehicleNumber(e.target.value)}
+      placeholder="Ej: 1042"
+      maxLength={16}
+      className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--text)] focus:border-amber-400 focus:outline-none"
+    />
+  </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                  ¿Cuándo viajaste?
-                </label>
-                {/* Mode toggle */}
-                <div className="inline-flex rounded-md bg-[var(--surface-2)] border border-[var(--border)] p-0.5 text-[10px]">
-                  <button
-                    type="button"
-                    onClick={() => setTripDateMode('date')}
-                    className={`px-1.5 py-0.5 rounded cursor-pointer font-medium transition-all ${
-                      tripDateMode === 'date'
-                        ? 'bg-amber-400 text-black font-bold shadow-2xs'
-                        : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                    }`}
-                  >
-                    Solo fecha
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTripDateMode('datetime')}
-                    className={`px-1.5 py-0.5 rounded cursor-pointer font-medium transition-all ${
-                      tripDateMode === 'datetime'
-                        ? 'bg-amber-400 text-black font-bold shadow-2xs'
-                        : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                    }`}
-                  >
-                    Fecha y hora
-                  </button>
-                </div>
-              </div>
+  {/* Fecha de viaje */}
+  <div>
+    <div className="flex items-center justify-between mb-1">
+      <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider truncate">
+  ¿Cuándo viajaste? <span className="text-[var(--text-dim)]">(Opcional)</span>
+</label>
+      {/* Mode toggle */}
+      <div className="inline-flex rounded-md bg-[var(--surface-2)] border border-[var(--border)] p-0.5 text-[10px]">
+        <button
+          type="button"
+          onClick={() => setTripDateMode('date')}
+          className={`px-1.5 py-0.5 rounded cursor-pointer font-medium transition-all ${
+            tripDateMode === 'date'
+              ? 'bg-amber-400 text-black font-bold shadow-2xs'
+              : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+          }`}
+        >
+          Solo fecha
+        </button>
+        <button
+          type="button"
+          onClick={() => setTripDateMode('datetime')}
+          className={`px-1.5 py-0.5 rounded cursor-pointer font-medium transition-all ${
+            tripDateMode === 'datetime'
+              ? 'bg-amber-400 text-black font-bold shadow-2xs'
+              : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+          }`}
+        >
+          Fecha y hora
+        </button>
+      </div>
+    </div>
 
-              {tripDateMode === 'date' ? (
-                <input
-                  type="date"
-                  value={tripDate}
-                  max={getCurrentDateMax()}
-                  onChange={(e) => setTripDate(e.target.value)}
-                  className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--text)] focus:border-amber-400 focus:outline-none"
-                />
-              ) : (
-                <input
-                  type="datetime-local"
-                  value={tripDateTime}
-                  max={getCurrentDateTimeMax()}
-                  onChange={(e) => setTripDateTime(e.target.value)}
-                  className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--text)] focus:border-amber-400 focus:outline-none"
-                />
-              )}
-              <span className="text-[10px] text-[var(--text-dim)] mt-0.5 block">
-                {tripDateMode === 'date'
-                  ? 'Opcional. Máximo hasta hoy (sin fechas futuras).'
-                  : 'Opcional. Máximo hasta el momento actual.'}
-              </span>
-            </div>
-          </div>
+    {tripDateMode === 'date' ? (
+<input
+  type="date"
+  value={tripDate}
+  max={getCurrentDateMax()}
+  onChange={(e) => {
+    const val = e.target.value;
+    if (val && isFutureDateOrTime(val)) {
+      setErrorMessage('No podés elegir una fecha futura.');
+      // NO actualizamos tripDate → el input queda con el valor anterior
+      // Pero como el input es controlado, se "revierte" automáticamente
+      return;
+    }
+    setErrorMessage(null);
+    setTripDate(val);
+  }}
+  className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--text)] focus:border-amber-400 focus:outline-none"
+/>
+    ) : (
+<input
+  type="datetime-local"
+  value={tripDateTime}
+  max={getCurrentDateTimeMax()}
+  onChange={(e) => {
+    const val = e.target.value;
+    if (val && isFutureDateOrTime(val)) {
+      setErrorMessage('No podés elegir una fecha u hora futura.');
+      return;
+    }
+    setErrorMessage(null);
+    setTripDateTime(val);
+  }}
+  className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--text)] focus:border-amber-400 focus:outline-none"
+/>
+    )}
+    <span className="text-[10px] text-[var(--text-dim)] mt-0.5 block">
+      {tripDateMode === 'date'
+        ? 'Opcional. Máximo hasta hoy.'
+        : 'Opcional. Máximo hasta el momento actual.'}
+    </span>
+  </div>
+</div>
 
           {/* Rating (Interactive stars & number buttons with coherent emerald color) */}
           <div className="bg-[var(--surface-2)] p-3 rounded-xl border border-[var(--border)]">
@@ -784,8 +811,8 @@ export const NewReviewModal: React.FC<NewReviewModalProps> = ({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                Etiquetas / Vibe del viaje
-              </label>
+  Etiquetas / Vibe del viaje <span className="text-[var(--text-dim)]">(Opcional)</span>
+</label>
               <button
                 type="button"
                 onClick={() => setShowAllTags(!showAllTags)}
@@ -825,7 +852,7 @@ export const NewReviewModal: React.FC<NewReviewModalProps> = ({
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                ¿Qué tal estuvo el viaje? *
+                ¿Qué tal estuvo el viaje? <span className="required-asterisk">*</span>
               </label>
               <span className="text-[11px] text-[var(--text-dim)] font-mono">
                 {reviewBody.length}/750

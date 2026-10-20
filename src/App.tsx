@@ -10,6 +10,7 @@ const NewsView = lazy(() => import('./views/NewsView').then(m => ({ default: m.N
 const AchievementsView = lazy(() => import('./views/AchievementsView').then(m => ({ default: m.AchievementsView })));
 const AdminView = lazy(() => import('./views/AdminView').then(m => ({ default: m.AdminView })));
 const TerminosView = lazy(() => import('./views/TerminosView').then(m => ({ default: m.TerminosView })));
+const TagView = lazy(() => import('./views/TagView').then(m => ({ default: m.TagView })));
 import { ShareModal } from './components/ShareModal';
 import { NewReviewModal } from './components/NewReviewModal';
 import { SingleReviewModal } from './components/SingleReviewModal';
@@ -19,15 +20,17 @@ import { ThemeMode, UserProfile, ReviewItem } from './types';
 import { supabase } from './lib/supabase';
 import { hydrateProfileMeta } from './lib/profileSync';
 import { getAchievementEntitlements } from './lib/achievementEntitlements';
-import { hasAcceptedCurrentTerms, acceptTerms, TERMS_VERSION } from './lib/terms';
+import { hasAcceptedCurrentTerms, TERMS_VERSION } from './lib/terms';
+import { SignupPromptProvider, useSignupPrompt } from './lib/signupPrompt';
 
-export default function App() {
+function AppInner() {
   const [currentView, setCurrentView] = useState<string>('feed');
   const [viewParam, setViewParam] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeMode>('dark');
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
   const { shouldShowSplash, onSplashFinish } = useSplashScreen();
+  const { promptSignup } = useSignupPrompt();
 
   // Modals
   const [shareReview, setShareReview] = useState<ReviewItem | null>(null);
@@ -35,6 +38,25 @@ export default function App() {
   const [preselectedLineId, setPreselectedLineId] = useState<string | null>(null);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [showTermsFromModal, setShowTermsFromModal] = useState(false);
+
+// Sincronizar currentUser con la sesión activa cada vez que cambia
+useEffect(() => {
+  const syncUser = async () => {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (authUser && currentUser && authUser.id !== currentUser.id) {
+      // Hay un mismatch, recargar el perfil
+      const { data: prof } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+      if (prof) {
+        setCurrentUser(hydrateProfileMeta(prof));
+      }
+    }
+  };
+  syncUser();
+}, []);
 
   // Read review query parameter from URL on mount & back/forward navigation
   useEffect(() => {
@@ -51,6 +73,18 @@ export default function App() {
     handleUrlReview();
     window.addEventListener('popstate', handleUrlReview);
     return () => window.removeEventListener('popstate', handleUrlReview);
+  }, []);
+
+  // Aplicar opt-out global de efectos de estrellas
+  useEffect(() => {
+    try {
+      const disabled = localStorage.getItem('omniboxd_star_effects_disabled') === '1';
+      if (disabled) {
+        document.body.classList.add('no-star-effects');
+      } else {
+        document.body.classList.remove('no-star-effects');
+      }
+    } catch {}
   }, []);
 
   // Actualizar el título de la pestaña dinámicamente según la vista
@@ -87,12 +121,21 @@ export default function App() {
       case 'admin':
         title = `Panel de administración — ${baseTitle}`;
         break;
+      case 'tag':
+        title = `${viewParam ? viewParam.replace(/-/g, ' ') : 'Etiqueta'} — ${baseTitle}`;
+        break;
       default:
         title = baseTitle;
     }
 
     document.title = title;
   }, [currentView, viewParam]);
+
+useEffect(() => {
+  if (currentView !== 'terms') {
+    setShowTermsFromModal(false);
+  }
+}, [currentView]);
 
   // Open or close review with browser URL synchronization
   const handleSelectReview = (revId: string | null) => {
@@ -176,26 +219,26 @@ export default function App() {
       return hydrateProfileMeta(baseProfile);
     };
 
-    const checkAuth = async () => {
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const user = sessionData.session?.user;
+const checkAuth = async () => {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData.session?.user;
 
-        if (user) {
-          const { data: prof } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', user.id)
-            .maybeSingle();
+    if (user) {
+      const { data: prof } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
 
-          setCurrentUser(mergeUserProfile(user, prof));
-        }
-      } catch (err) {
-        console.warn('Auth check error:', err);
-      } finally {
-        setIsAuthChecking(false);
-      }
-    };
+      setCurrentUser(mergeUserProfile(user, prof));
+    }
+  } catch (err) {
+    console.warn('Auth check error:', err);
+  } finally {
+    setIsAuthChecking(false);
+  }
+};
 
     checkAuth();
 
@@ -256,6 +299,10 @@ export default function App() {
         setCurrentView('admin');
       } else if (path.startsWith('/terminos') || path.startsWith('/html/terms.html')) {
         setCurrentView('terms');
+      } else if (path.startsWith('/tag/')) {
+        const slug = path.replace('/tag/', '').replace('/html/tag.html', '');
+        setCurrentView('tag');
+      setViewParam(slug);
       } else {
         setCurrentView('feed');
       }
@@ -287,6 +334,7 @@ export default function App() {
       else if (view === 'achievements') targetPath = '/logros';
       else if (view === 'admin') targetPath = '/admin';
       else if (view === 'terms') targetPath = '/terminos';
+      else if (view === 'tag') targetPath = param ? `/tag/${encodeURIComponent(param)}` : '/tag';
 
       const currentFullPath = window.location.pathname + window.location.search;
       if (currentFullPath !== targetPath) {
@@ -294,6 +342,13 @@ export default function App() {
       }
     } catch (e) {}
   };
+
+  // 🔑 Escuchar el evento "go auth" que emite el modal de conversión
+  useEffect(() => {
+    const handler = () => handleNavigate('auth');
+    window.addEventListener('omniboxd_go_auth', handler as EventListener);
+    return () => window.removeEventListener('omniboxd_go_auth', handler as EventListener);
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -308,33 +363,55 @@ export default function App() {
 
   const handleOpenGeneralNewReview = () => {
     if (!currentUser) {
-      handleNavigate('auth');
+      promptSignup('create_review');
       return;
     }
     setPreselectedLineId(null);
     setNewReviewModalOpen(true);
   };
 
-  // Aceptación de términos desde el modal bloqueante
-  const handleTermsAccepted = async () => {
-    if (!currentUser) return;
-    const ok = await acceptTerms(currentUser.id);
-    if (!ok) {
-      alert('No se pudo guardar la aceptación. Intentá de nuevo.');
-      return;
-    }
-    setCurrentUser((prev) =>
-      prev
-        ? {
-            ...prev,
-            terms_accepted_at: new Date().toISOString(),
-            terms_version: TERMS_VERSION
-          }
-        : prev
-    );
-    setShowTermsFromModal(false);
-  };
+const handleTermsAccepted = async () => {
+  if (!currentUser) return;
 
+  // 🔑 Asegurar el UPDATE (idempotente: si ya estaba aceptado, no rompe nada)
+  const { data: updated, error } = await supabase
+    .from('users')
+    .update({
+      terms_accepted_at: new Date().toISOString(),
+      terms_version: TERMS_VERSION
+    })
+    .eq('id', currentUser.id)
+    .select('*')
+    .maybeSingle();
+
+  if (!error && updated) {
+    setCurrentUser(hydrateProfileMeta(updated));
+  } else {
+    // Fallback: refetch por si el update falló pero ya estaba en DB
+    const { data: freshProfile } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', currentUser.id)
+      .maybeSingle();
+
+    if (freshProfile) {
+      setCurrentUser(hydrateProfileMeta(freshProfile));
+    } else {
+      // Último recurso: actualizar estado local
+      setCurrentUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              terms_accepted_at: new Date().toISOString(),
+              terms_version: TERMS_VERSION
+            }
+          : prev
+      );
+    }
+  }
+
+  setShowTermsFromModal(false);
+};
   // ¿Hay que forzar la aceptación de términos?
   const needsTermsAcceptance =
     !!currentUser &&
@@ -352,17 +429,17 @@ export default function App() {
         {/* Top Header */}
         {currentView !== 'auth' && (
           <>
-          <Header
-            theme={theme}
-            onThemeChange={handleThemeChange}
-            currentUser={currentUser}
-            onNavigate={handleNavigate}
-            onSignOut={handleSignOut}
-            onOpenReview={(revId) => handleSelectReview(revId)}
-            currentView={currentView}
-            viewParam={viewParam}
-            onOpenNewReview={handleOpenGeneralNewReview}
-          />
+            <Header
+              theme={theme}
+              onThemeChange={handleThemeChange}
+              currentUser={currentUser}
+              onNavigate={handleNavigate}
+              onSignOut={handleSignOut}
+              onOpenReview={(revId) => handleSelectReview(revId)}
+              currentView={currentView}
+              viewParam={viewParam}
+              onOpenNewReview={handleOpenGeneralNewReview}
+            />
             <div className="h-[var(--head-h)] shrink-0 pointer-events-none" aria-hidden="true" />
           </>
         )}
@@ -374,22 +451,31 @@ export default function App() {
               <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
               <p className="text-xs text-[var(--text-muted)] mt-3">Cargando…</p>
             </div>
+            
           }>
-{currentView === 'terms' && (
-  <TerminosView
+            {currentView === 'tag' && (
+  <TagView
     currentUser={currentUser}
+    tagSlug={viewParam || ''}
     onNavigate={handleNavigate}
-    requireAcceptance={
-      !!currentUser &&
-      !hasAcceptedCurrentTerms(currentUser) &&
-      !isAuthChecking
-    }
-    onAccept={async () => {
-      await handleTermsAccepted();
-      handleNavigate('feed');
-    }}
+    onOpenShare={(rev) => setShareReview(rev)}
   />
 )}
+            {currentView === 'terms' && (
+              <TerminosView
+                currentUser={currentUser}
+                onNavigate={handleNavigate}
+                requireAcceptance={
+                  !!currentUser &&
+                  !hasAcceptedCurrentTerms(currentUser) &&
+                  !isAuthChecking
+                }
+                onAccept={async () => {
+                  await handleTermsAccepted();
+                  handleNavigate('feed');
+                }}
+              />
+            )}
 
             {currentView === 'feed' && (
               <HomeFeedView
@@ -465,13 +551,13 @@ export default function App() {
 
         {/* Bottom Navigation */}
         {currentView !== 'auth' && (
-        <BottomNav
-          currentView={currentView}
-          viewParam={viewParam}
-          onNavigate={(v) => handleNavigate(v)}
-          currentUser={currentUser}
-          onOpenNewReview={handleOpenGeneralNewReview}
-        />
+          <BottomNav
+            currentView={currentView}
+            viewParam={viewParam}
+            onNavigate={(v) => handleNavigate(v)}
+            currentUser={currentUser}
+            onOpenNewReview={handleOpenGeneralNewReview}
+          />
         )}
 
         {/* New Review Modal */}
@@ -511,17 +597,22 @@ export default function App() {
         )}
 
         {/* Terms Acceptance Modal (bloqueante) */}
-{needsTermsAcceptance && currentUser && (
-  <TermsAcceptanceModal
-    currentUser={currentUser}
-    onOpenTerms={() => {
-      setShowTermsFromModal(true);
-      handleNavigate('terms');
-    }}
-    onAccepted={handleTermsAccepted}
-  />
-)}
+        {needsTermsAcceptance && currentUser && (
+          <TermsAcceptanceModal
+            currentUser={currentUser}
+            onOpenTerms={() => setShowTermsFromModal(true)}
+            onAccepted={handleTermsAccepted}
+          />
+        )}
       </div>
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <SignupPromptProvider>
+      <AppInner />
+    </SignupPromptProvider>
   );
 }

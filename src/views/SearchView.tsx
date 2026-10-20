@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, Star, ArrowRight, ArrowLeft, Bus, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { BusLine, ReviewItem, UserProfile } from '../types';
 import { BUS_COMPANIES, COMPANY_COLORS } from '../lib/constants';
-import { fetchAllLines, fetchAllCompanies, supabase } from '../lib/supabase';
+import { fetchAllLines, fetchAllCompanies, fetchReviewsByLine, supabase } from '../lib/supabase';
 import { ReviewCard } from '../components/ReviewCard';
 import { getLineRoutes } from '../lib/routes';
 
@@ -105,7 +105,7 @@ setLines(sortedLines);
     return () => { cancelled = true; };
   }, [currentUser?.id]);
 
-  // Load reviews for selected line
+   // Load reviews for selected line (con combos y métricas)
   useEffect(() => {
     if (!activeLineId) {
       setActiveLineReviews([]);
@@ -115,41 +115,18 @@ setLines(sortedLines);
     const loadLineReviews = async () => {
       setIsLoadingReviews(true);
       try {
-        const { data } = await supabase
-          .from('reviews')
-          .select('id, rating, body, trip_date, route_label, vehicle_number, created_at, user_id, users(id, username, avatar_url), lines(id, number, company_id, companies(short_name, color, logo_url))')
-          .eq('line_id', activeLineId)
-          .order('created_at', { ascending: false });
-
-        if (data) {
-          const revs = data.map((r: any) => ({
-            id: r.id,
-            rating: Number(r.rating) || 0,
-            body: r.body || '',
-            trip_date: r.trip_date,
-            created_at: r.created_at,
-            user_id: r.user_id || r.users?.id,
-            route_label: r.route_label,
-            vehicle_number: r.vehicle_number,
-            users: r.users,
-            lines: r.lines,
-            tags: [],
-            like_count: 0,
-            dislike_count: 0,
-            comment_count: 0,
-            repost_count: 0
-          }));
-          setActiveLineReviews(revs);
-        }
+        const revs = await fetchReviewsByLine(activeLineId, currentUser?.id);
+        setActiveLineReviews(revs);
       } catch (err) {
         console.error('Error loading line reviews:', err);
+        setActiveLineReviews([]);
       } finally {
         setIsLoadingReviews(false);
       }
     };
 
     loadLineReviews();
-  }, [activeLineId]);
+  }, [activeLineId, currentUser?.id]);
 
   // Toggle favorite line
   const handleToggleFavorite = async (lineId: string, e: React.MouseEvent) => {

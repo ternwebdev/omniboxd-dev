@@ -7,10 +7,14 @@ interface NewsViewProps {
 
 export const NewsView: React.FC<NewsViewProps> = ({ onNavigate }) => {
 
-    const [showFormIframe, setShowFormIframe] = useState(false);
+  const [showFormIframe, setShowFormIframe] = useState(false);
 
-    const versions = [
-  { id: 'v123', label: 'v1.2.3 · Combinaciones', badge: 'v1.2.3', date: '04/10/2026', isLatest: true },
+  const versions = [
+  { id: 'v139', label: 'v1.3.9 · Bugs en corrección', badge: 'v1.3.9', date: '08/10/2026', isLatest: true },
+  { id: 'v138', label: 'v1.3.8 · Maldonado y fixes', badge: 'v1.3.8', date: '07/10/2026' },
+  { id: 'v135', label: 'v1.3.5 · Combinaciones, tags y magia', badge: 'v1.3.5', date: '06/10/2026' },
+  { id: 'v125', label: 'v1.2.5 · Top líneas', badge: 'v1.2.5', date: '05/10/2026' },
+  { id: 'v123', label: 'v1.2.3 · Combinaciones, transbordos y arreglos', badge: 'v1.2.3', date: '04/10/2026' },
   { id: 'v106', label: 'v1.0.6 · Menciones y términos', badge: 'v1.0.6', date: '03/10/2026' },
   { id: 'v100', label: 'v1.0.0 · Lanzamiento', badge: 'v1.0.0', date: '23/09/2026' },
   { id: 'v096', label: 'v0.9.6 · Nuevas líneas', badge: 'v0.9.6', date: '07/09/2026' },
@@ -18,29 +22,29 @@ export const NewsView: React.FC<NewsViewProps> = ({ onNavigate }) => {
   { id: 'v094', label: 'v0.9.4 · Vocabulario', badge: 'v0.9.4', date: '01/09/2026' },
   { id: 'v093', label: 'v0.9.3 · Social', badge: 'v0.9.3', date: '28/08/2026' },
   { id: 'v090', label: 'v0.9.0 · Prototipo', badge: 'v0.9.0', date: '26/08/2026' }
-];
+  ];
 
-const [activeVersion, setActiveVersion] = useState<string>('v123');
-const isProgrammaticScrollRef = useRef(false);
+  const [activeVersion, setActiveVersion] = useState<string>('v139');
+  const isProgrammaticScrollRef = useRef(false);
 
-const scrollToVersion = (id: string) => {
-  const el = document.getElementById(`news-${id}`);
-  if (!el) return;
+  const scrollToVersion = (id: string) => {
+    const el = document.getElementById(`news-${id}`);
+    if (!el) return;
 
   // Bloquea el listener
-  isProgrammaticScrollRef.current = true;
-  setActiveVersion(id);
+    isProgrammaticScrollRef.current = true;
+    setActiveVersion(id);
 
   // Cancela cualquier scroll suave pendiente
-  window.scrollTo({ top: window.scrollY, behavior: 'auto' });
+    window.scrollTo({ top: window.scrollY, behavior: 'auto' });
 
   // Lanza el nuevo scroll
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  window.setTimeout(() => {
-    isProgrammaticScrollRef.current = false;
-  }, 700);
-};
+    window.setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 700);
+  };
 
 useEffect(() => {
   const handleScroll = () => {
@@ -247,12 +251,48 @@ useEffect(() => {
               </div>
             </div>
           </div>
+
+          <div className="border-t border-[var(--border)] pt-3 space-y-3">
+  <h3 className="text-xs font-display font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+    Seguinos en redes
+  </h3>
+  <div className="flex flex-wrap gap-2">
+    <a
+      href="https://instagram.com/omniboxd.app"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 text-xs text-[var(--text-muted)] hover:text-pink-400 transition-colors"
+    >
+      <div className="w-7 h-7 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center">
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+        </svg>
+      </div>
+      <span className="font-mono">@omniboxd.app</span>
+    </a>
+    <a
+      href="https://twitter.com/omniboxd"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 text-xs text-[var(--text-muted)] hover:text-sky-400 transition-colors"
+    >
+      <div className="w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+        </svg>
+      </div>
+      <span className="font-mono">@omniboxd</span>
+    </a>
+  </div>
+</div>
         </div>
       </article>
 
-      {/* v1.2.0 — Combinaciones y menciones inteligentes */}
+      {/* v1.3.9 — Fix del modal de términos y robustez del feed */}
       <article
-        id="news-v123"
+        id="news-v139"
         className="scroll-mt-20 bg-[var(--surface)] border-2 border-amber-400/60 rounded-xl p-4 shadow-md space-y-3 relative overflow-hidden"
       >
         <div className="absolute -right-6 -top-6 text-amber-400/10 pointer-events-none">
@@ -261,7 +301,262 @@ useEffect(() => {
         <div className="relative space-y-3">
           <div className="flex items-center justify-between">
             <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-black text-xs font-mono font-bold shadow-sm">
-              v1.2.3 · Actual
+              v1.3.9 · Actual
+            </span>
+            <span className="text-[11px] text-[var(--text-dim)] font-mono">08/10/2026</span>
+          </div>
+
+          <h2 className="font-display font-bold text-base text-[var(--text)]">
+            Bugs en corrección 🛡️
+          </h2>
+
+          <ul className="space-y-2.5 text-xs text-[var(--text)]">
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong>🛡️ Solución de bugs reportados por usuarios:</strong> Aceptación de términos y condiciones, introducción de estados locales en funciones internas del sitio, iniciación de parches en feed vacío por internet lento o escaso.
+              </div>
+            </li>
+          </ul>
+
+          <div className="mt-3 p-2.5 rounded-lg bg-amber-400/10 border border-amber-400/30 text-xs text-[var(--text)] flex items-start gap-2">
+            <Award className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              <strong>Esta actualización no trae funciones nuevas visibles, pero hace que omniboxd sea mucho más confiable para todas las personas.</strong> Seguimos puliendo los engranajes internos. <br /><strong>- el staff de omniboxd</strong>
+            </span>
+          </div>
+        </div>
+      </article>
+
+      {/* v1.3.8 — Maldonado y fixes */}
+      <article
+        id="news-v138"
+        className="scroll-mt-20 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 shadow-sm space-y-3"
+      >
+        <div className="relative space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-black text-xs font-mono font-bold shadow-sm">
+              v1.3.8
+            </span>
+            <span className="text-[11px] text-[var(--text-dim)] font-mono">07/10/2026</span>
+          </div>
+
+          <h2 className="font-display font-bold text-base text-[var(--text)]">
+            Salimos del área metropolitana: llegó Maldonado 🚌🌊
+          </h2>
+
+          <p className="text-xs text-[var(--text-muted)] italic">
+            Omniboxd empieza a cruzar fronteras departamentales. Además, fixes importantes en el modal de nueva reseña y en el sistema de aceptación de términos.
+          </p>
+
+          <ul className="space-y-2.5 text-xs text-[var(--text)]">
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong>🌊 Maldonado se suma a omniboxd:</strong> gracias al trabajo de nuestra persona consultora, agregamos un montón de <strong>líneas urbanas del departamento de Maldonado</strong> a la base de datos. Ahora podés reseñar viajes en los bondis de Maldonado, Punta del Este, San Carlos y alrededores. Esto marca el primer paso de <strong>omniboxd fuera del área metropolitana</strong>. ¡Seguimos creciendo!
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong>📅 Fix del selector de fecha en el modal de omniposteo:</strong> solucionamos un bug que impedía abrir el selector de fecha y hora en algunos navegadores.
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong>🛡️ Fix del modal de Términos y Condiciones:</strong> corregimos un bug que impedía <strong>guardar la aceptación de términos</strong> en algunas sesiones.
+              </div>
+            </li>
+          </ul>
+
+          <div className="mt-3 p-2.5 rounded-lg bg-amber-400/10 border border-amber-400/30 text-xs text-[var(--text)] flex items-start gap-2">
+            <Award className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              <strong>Cada vez somos más.</strong> Gracias por seguir sumando líneas, usuarios y viajes a omniboxd. <br /><strong>- el staff de omniboxd</strong>
+            </span>
+          </div>
+        </div>
+      </article>
+
+            {/* v1.3.5 — Combinaciones, tags, efectos y más */}
+      <article
+        id="news-v135"
+        className="scroll-mt-20 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 shadow-sm space-y-3"
+      >
+        <div className="relative space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-black text-xs font-mono font-bold shadow-sm">
+              v1.3.5
+            </span>
+            <span className="text-[11px] text-[var(--text-dim)] font-mono">06/10/2026</span>
+          </div>
+
+          <h2 className="font-display font-bold text-base text-[var(--text)]">
+            Tags clickeables, transbordos propios, redes, chiflidos y el inicio de la magia visual
+          </h2>
+
+          <p className="text-xs text-[var(--text-muted)] italic">
+            La actualización más grande hasta ahora en conjunto con la v1.2.3: nueva forma de registrar viajes compuestos, etiquetas navegables, sonidos y efectos ambientales por nivel.
+          </p>
+
+          <ul className="space-y-2.5 text-xs text-[var(--text)]">
+            {/* ────── 🚌 COMBINACIONES ────── */}
+            <li className="flex items-start gap-2 pt-1 border-t border-[var(--border)]">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="pt-1">
+                <strong>🚌 Combinaciones (hasta 3 ómnibus):</strong> si tu viaje tuvo <strong>varios ómnibus seguidos</strong>, podés agruparlos en un solo omniposteo. Cada pata tiene su línea, recorrido, coche, fecha, rating, tags y texto. En el feed y el perfil se ven como un único hilo apilado con flechitas ↓. <em><a href="#news-v123">Más información en la v1.2.3</a>.</em>
+              </div>
+            </li>
+
+            {/* ────── 🏷️ TAGS ────── */}
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="pt-1">
+                <strong>🏷️ Tags clickeables:</strong> ahora podés tocar cualquier etiqueta de un omniposteo (por ejemplo <em>"venía vacío"</em> o <em>"aire al mango"</em>) y te lleva a una <strong>sección dedicada</strong> con todos los omniposteos que usan esa etiqueta. Ideal para descubrir experiencias parecidas, ver qué opinan otras personas sobre el mismo tipo de viaje y compartir el link del tag con quien quieras.
+              </div>
+            </li>
+
+            {/* ────── 🎨 ESTRELLAS Y EFECTOS ────── */}
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="pt-1">
+                <strong>🎨 Estrellas de colores arregladas:</strong> parche de estrellas mediante logros. Las estrellas de las reseñas vuelven a cambiar de color según el nivel de la persona autora y el rating: violeta (nivel alto + rating alto), celeste (nivel medio + rating alto), plata (nivel alto + rating bajo) y verde (default).
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong>✨ Efectos ambientales por nivel:</strong> los omniposteos de autores con logros especiales ahora tienen <strong>efectos visuales animados</strong> que se sienten vivos. Chispas azules pulsantes (Diferstar), partículas violeta que suben (Interstar), niebla plateada que se desplaza (Opaquestar) y relámpagos sutiles de tormenta (Stormystar).
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong>🔇 Control de accesibilidad:</strong> podés <strong>desactivar los efectos visuales</strong> desde Ajustes si te marean o distraen. Se respeta automáticamente la preferencia del sistema.
+              </div>
+            </li>
+
+            {/* ────── 🔊 SONIDOS Y CONFETI ────── */}
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="pt-1">
+                <strong>🔊 Sonidos sutiles:</strong> chiflidos, bajadas, transbordos, charlas y notificaciones nuevas ahora tienen <strong>feedback sonoro muy suave</strong>. Al <strong>sacar</strong> una reacción, el sonido se reproduce invertido (en navegadores compatibles). Todo desactivado por defecto: se activa desde Ajustes del perfil.
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong>🎉 Confeti al chiflar:</strong> si chiflás un omniposteo de alguien de <strong>nivel 4.5+</strong>, sale <strong>confeti violeta</strong> desde el botón. Si el autor es <strong>nivel 5 (Leyenda)</strong>, el confeti es dorado + violeta y con más partículas. Un detalle especial para los niveles más altos.
+              </div>
+            </li>
+
+            {/* ────── 💬 COMENTARIOS ────── */}
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="pt-1">
+                <strong>💬 Reacciones en el último comentario del feed:</strong> cuando un omniposteo tiene charlas de parada, el preview del último comentario en el feed ahora tiene sus <strong>propios botones de chiflido y bajada</strong>. Ya no tenés que abrir el acordeón para reaccionar.
+              </div>
+            </li>
+
+            {/* ────── 🔄 FEED Y NOTIFICACIONES ────── */}
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="pt-1">
+                <strong>🔄 Transbordos propios en el feed:</strong> tus propios transbordos aparecen en tu Inicio con un badge distintivo ("Tu transbordo · lo compartiste a tu perfil"), así se diferencian claramente de los transbordos de la gente que seguís (que van en verde).
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong>🔔 Notificaciones limpias:</strong> solucionamos un bug que dejaba notificaciones duplicadas o en el limbo.
+              </div>
+            </li>
+
+            {/* ────── 👋 CONVERSIÓN ────── */}
+           <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="pt-1">
+                <strong>👋 Modal de conversión para invitados:</strong> si no tenés login o cuenta y tratás de chiflar, comentar, transbordar, seguir o publicar, ya no te manda directo a la pantalla de login. Aparece un <strong>modal contextual</strong> con un mensaje acorde a la acción y los botones para crear cuenta o iniciar sesión.
+              </div>
+            </li>
+
+            {/* ────── 🔗 REDES ────── */}
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="pt-1">
+                <strong>🔗 Redes sociales:</strong> agregamos los links oficiales de omniboxd en el <strong>manual</strong>, las <strong>novedades</strong> y en el <strong>panel de notificaciones</strong> para seguir la comunidad también en <a href="https://instagram.com/omniboxd.app" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">Instagram</a> y <a href="https://twitter.com/omniboxd" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">X/Twitter</a>.
+              </div>
+            </li>
+
+            {/* ────── ⚙️ INTERNAS ────── */}
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="pt-1">
+                <strong>⚙️ Mejoras internas:</strong> inserciones de funciones seguras, correcciones de bugs conocidos y optimizaciones de varias funcionalidades.
+              </div>
+            </li>
+          </ul>
+
+          <div className="mt-3 p-2.5 rounded-lg bg-amber-400/10 border border-amber-400/30 text-xs text-[var(--text)] flex items-start gap-2">
+            <Award className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              <strong>El sitio crece con cada viaje que registrás.</strong> Gracias por seguir viajando con omniboxd. <br /><strong>- el staff de omniboxd</strong>
+            </span>
+          </div>
+        </div>
+      </article>
+
+            {/* v1.2.5 — Top líneas de los últimos 7 días */}
+      <article
+        id="news-v125"
+        className="scroll-mt-20 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 shadow-sm space-y-3"
+      >
+        <div className="relative space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-black text-xs font-mono font-bold shadow-sm">
+              v1.2.5
+            </span>
+            <span className="text-[11px] text-[var(--text-dim)] font-mono">05/10/2026</span>
+          </div>
+
+          <h2 className="font-display font-bold text-base text-[var(--text)]">
+            Top líneas de los últimos 7 días, ahora también en el celular
+          </h2>
+
+          <ul className="space-y-2.5 text-xs text-[var(--text)]">
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong>🏆 Ranking "Líneas con más viajes":</strong> bug arreglado en esta sección. Ahora se calcula sobre <strong>todas</strong> las reseñas publicadas en los últimos <strong>7 días</strong>, con lo cual el top 5 muestra las líneas más activas de la semana.
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong>📱 Visible también en celular:</strong> problema de compatibilidad resuelto. Ahora está disponible en dispositivos móviles arriba del feed (se expande al tocarlo), y en dispositivos de escritorio al costado derecho del sitio.
+              </div>
+            </li>
+          </ul>
+
+          <div className="mt-3 p-2.5 rounded-lg bg-amber-400/10 border border-amber-400/30 text-xs text-[var(--text)] flex items-start gap-2">
+            <Award className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              <strong>Seguimos sumando detalles que hacen a omniboxd un lugar más vivo.</strong> ¡No te bajés del ómnibus! <br /><strong>- el staff de omniboxd</strong>
+            </span>
+          </div>
+        </div>
+      </article>
+
+      {/* v1.2.3 — Combinaciones y menciones inteligentes */}
+      <article
+        id="news-v123"
+        className="scroll-mt-20 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 shadow-sm space-y-3"
+      >
+        <div className="relative space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-black text-xs font-mono font-bold shadow-sm">
+              v1.2.3
             </span>
             <span className="text-[11px] text-[var(--text-dim)] font-mono">04/10/2026</span>
           </div>
@@ -389,13 +684,11 @@ useEffect(() => {
       </article>
 
       {/* v1.0.0 — ¡Lanzamiento oficial! */}
+            {/* v1.2.5 — Top líneas de los últimos 7 días */}
       <article
         id="news-v100"
-        className="scroll-mt-20 bg-[var(--surface)] border-2 border-amber-400/60 rounded-xl p-4 shadow-md space-y-3 relative overflow-hidden"
+        className="scroll-mt-20 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 shadow-sm space-y-3"
       >
-        <div className="absolute -right-6 -top-6 text-amber-400/10 pointer-events-none">
-          <Sparkles className="w-32 h-32" />
-        </div>
         <div className="relative space-y-3">
           <div className="flex items-center justify-between">
             <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-black text-xs font-mono font-bold shadow-sm">

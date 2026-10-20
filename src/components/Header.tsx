@@ -31,6 +31,7 @@ import {
   AppNotification 
 } from '../lib/notifications';
 import { formatNotificationTime } from '../lib/dateUtils';
+import { playSound } from '../lib/sounds';
 
 interface HeaderProps {
   theme: ThemeMode;
@@ -118,8 +119,20 @@ export const Header: React.FC<HeaderProps> = ({
     const loadNotifications = async () => {
       try {
         const items = await fetchUserNotifications(currentUser.id);
+        
+        // 🔔 Detectar si hay notificaciones NUEVAS (no leídas) que no estaban antes
+        setUnreadCount((prevCount) => {
+          const newUnread = items.filter((n) => !n.read_at).length;
+          // Solo suena si pasamos de menos a más (es decir, llegó una nueva)
+          if (newUnread > prevCount) {
+            try {
+              playSound('ding', 0.25);
+            } catch {}
+          }
+          return newUnread;
+        });
+        
         setNotifications(items);
-        setUnreadCount(items.filter((n) => !n.read_at).length);
       } catch (e) {
         // quiet fallback
       }
@@ -143,8 +156,17 @@ export const Header: React.FC<HeaderProps> = ({
           schema: 'public',
           table: 'notifications'
         },
-        () => {
+        (payload) => {
+          // Re-consultar siempre, sin importar el tipo de evento
           loadNotifications();
+
+          // Si es un DELETE y no lo teníamos, no hacemos nada especial
+          // Si es un INSERT, suena el ding (si están activados los sonidos)
+          if (payload.eventType === 'INSERT') {
+            try {
+              playSound('ding', 0.25);
+            } catch {}
+          }
         }
       )
       .subscribe();
@@ -482,8 +504,8 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   )}
 
-                  {/* Footer: Link a términos y condiciones */}
-                  <div className="mt-3 pt-2.5 border-t border-[var(--border)] flex items-center justify-between">
+                  {/* Footer: Link a términos y condiciones + redes */}
+                  <div className="mt-3 pt-2.5 border-t border-[var(--border)] flex items-center justify-between gap-2">
                     <button
                       type="button"
                       onClick={() => {
@@ -493,11 +515,38 @@ export const Header: React.FC<HeaderProps> = ({
                       className="text-[10px] text-[var(--text-muted)] hover:text-amber-400 transition-colors cursor-pointer inline-flex items-center gap-1"
                     >
                       <FileText className="w-3 h-3" />
-                      <span>Términos y privacidad</span>
+                      <span>Términos</span>
                     </button>
-                    <span className="text-[9px] text-[var(--text-dim)] font-mono">
-                      omniboxd v1.0
-                    </span>
+
+                    {/* Redes sociales */}
+                    <div className="flex items-center gap-1.5">
+                      <a
+                        href="https://instagram.com/omniboxd.app"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-6 h-6 rounded-md bg-[var(--surface-2)] hover:bg-pink-500/20 text-[var(--text-muted)] hover:text-pink-400 border border-[var(--border)] hover:border-pink-400/40 flex items-center justify-center transition-all"
+                        title="@omniboxd.app en Instagram"
+                        aria-label="Instagram"
+                      >
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                        </svg>
+                      </a>
+                      <a
+                        href="https://twitter.com/omniboxd"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-6 h-6 rounded-md bg-[var(--surface-2)] hover:bg-sky-500/20 text-[var(--text-muted)] hover:text-sky-400 border border-[var(--border)] hover:border-sky-400/40 flex items-center justify-center transition-all"
+                        title="@omniboxd en X/Twitter"
+                        aria-label="X (Twitter)"
+                      >
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                      </a>
+                    </div>
                   </div>
                 </div>
               )}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, ExternalLink, AlertCircle } from 'lucide-react';
-import { TERMS_VERSION, TERMS_LAST_UPDATED, acceptTerms } from '../lib/terms';
+import { TERMS_VERSION, TERMS_LAST_UPDATED } from '../lib/terms';
 import { UserProfile } from '../types';
 import { useScrollLock } from '../lib/scrollLock';
 
@@ -9,6 +9,8 @@ interface TermsAcceptanceModalProps {
   onAccepted: () => void;
   onOpenTerms: () => void;
 }
+
+
 
 export const TermsAcceptanceModal: React.FC<TermsAcceptanceModalProps> = ({
   currentUser,
@@ -21,14 +23,18 @@ export const TermsAcceptanceModal: React.FC<TermsAcceptanceModalProps> = ({
   // Bloquea el scroll del body mientras el modal está abierto
   useScrollLock(true);
 
-  const handleAccept = async () => {
-    if (!accepted) return;
-    setIsSaving(true);
-    const ok = await acceptTerms(currentUser.id);
+const handleAccept = async () => {
+  if (!accepted) return;
+  setIsSaving(true);
+  try {
+    await onAccepted();
+  } catch (err) {
+    console.error('handleAccept error:', err);
+    alert('Ocurrió un error inesperado. Cerrá sesión y volvé a entrar.');
+  } finally {
     setIsSaving(false);
-    if (ok) onAccepted();
-    else alert('No se pudo guardar la aceptación. Intentá de nuevo.');
-  };
+  }
+};
 
   return (
 <div className="fixed inset-0 z-[300] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 touch-none">
@@ -121,3 +127,4 @@ export const TermsAcceptanceModal: React.FC<TermsAcceptanceModalProps> = ({
     </div>
   );
 };
+

@@ -130,7 +130,7 @@ users?: {
       logo_url?: string | null;
     };
   };
-  tags?: { label: string; emoji?: string }[];
+  tags?: { label: string; emoji?: string; slug?: string }[];
   // Social metrics
   like_count?: number;
   dislike_count?: number;
@@ -140,6 +140,7 @@ users?: {
   my_reposted?: boolean;
   reposted_by?: string | null;
   repost_at?: string | null;
+  is_own_repost?: boolean;  // 👈 NUEVO
   _prio?: number;
   latest_comment?: CommentItem; 
   // Combinaciones

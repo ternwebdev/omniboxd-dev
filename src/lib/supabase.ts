@@ -49,9 +49,10 @@ export async function fetchFeedReviews(
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) {
+        if (error) {
       console.warn('Supabase fetchFeedReviews error:', error.message);
-      return [];
+      // 👇 Errores de Supabase (4xx, 5xx, RLS) también deben propagarse
+      throw new Error(`fetchFeedReviews: ${error.message}`);
     }
 
     const reviews: ReviewItem[] = data.map((r: any) => ({
@@ -146,7 +147,7 @@ export async function fetchFeedReviews(
 
     // Fetch tags, likes, comments, reposts in parallel
 const [tagsRes, likesRes, commentsRes, repostsRes, latestCommentsRes] = await Promise.all([
-  supabase.from('review_tags').select('review_id, tags(label, emoji)').in('review_id', reviewIds),
+  supabase.from('review_tags').select('review_id, tags(label, emoji, slug)').in('review_id', reviewIds),
   supabase.from('likes').select('review_id, user_id, reaction').in('review_id', reviewIds),
   supabase.from('comments').select('review_id').in('review_id', reviewIds),
   supabase.from('reposts').select('review_id, user_id').in('review_id', reviewIds),
@@ -189,13 +190,14 @@ if (latestCommentsRes.data) {
 
     // Map tags
     if (tagsRes.data) {
-      const tagsByReview: Record<string, { label: string; emoji?: string }[]> = {};
+      const tagsByReview: Record<string, { label: string; emoji?: string; slug?: string }[]> = {};
       tagsRes.data.forEach((rt: any) => {
         if (!tagsByReview[rt.review_id]) tagsByReview[rt.review_id] = [];
         if (rt.tags) {
           tagsByReview[rt.review_id].push({
             label: rt.tags.label,
-            emoji: rt.tags.emoji
+            emoji: rt.tags.emoji,
+            slug: rt.tags.slug
           });
         }
       });
@@ -257,7 +259,7 @@ if (latestCommentsRes.data) {
     // 🚌 Transbordos: traer los reposts recientes de la gente que seguís
     // ─────────────────────────────────────────────────────────────
     try {
-      // 1. IDs de la gente que seguís
+            // 1. IDs de la gente que seguís + vos mismo (para ver tus propios transbordos)
       let followingIds: string[] = [];
       if (currentUserId) {
         const { data: followingRows } = await supabase
@@ -266,22 +268,34 @@ if (latestCommentsRes.data) {
           .eq('follower_id', currentUserId)
           .limit(50);
         followingIds = (followingRows || []).map((r: any) => r.following_id).filter(Boolean);
+        // 👇 Incluirme a mí mismo para ver mis propios transbordos
+        followingIds.push(currentUserId);
       }
 
       // 2. Traer reposts recientes de esa gente (excluyendo las reviews que ya están en el feed)
       if (followingIds.length > 0) {
         const existingIds = new Set(reviews.map((r) => r.id));
 
-        const { data: repostsData } = await supabase
+          const { data: repostsData } = await supabase
           .from('reposts')
           .select('id, review_id, user_id, created_at, users:user_id(id, username, avatar_url, profile_flair, username_color, avatar_border, achievement_level, visible_badges)')
           .in('user_id', followingIds)
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(20);  // 👈 subir de 10 a 20
 
-        if (repostsData && repostsData.length > 0) {
+                if (repostsData && repostsData.length > 0) {
           // 3. Traer las reviews reposteadas que NO están en el feed principal
-          const newReviewIds = repostsData
+          // Separar tus propios reposts para darles prioridad
+          const ownReposts = repostsData.filter((rp: any) => rp.user_id === currentUserId);
+          const othersReposts = repostsData.filter((rp: any) => rp.user_id !== currentUserId);
+          
+          // Asegurar que los tuyos siempre entren (hasta 5 propios + 15 ajenos)
+          const prioritizedReposts = [
+            ...ownReposts.slice(0, 5),
+            ...othersReposts.slice(0, 15)
+          ];
+
+          const newReviewIds = prioritizedReposts
             .map((rp: any) => rp.review_id)
             .filter((id: string) => id && !existingIds.has(id));
 
@@ -294,13 +308,14 @@ if (latestCommentsRes.data) {
             if (extraReviews) {
               // Mapear info del repost por review_id
               const repostByReviewId: Record<string, any> = {};
-              repostsData.forEach((rp: any) => {
+              prioritizedReposts.forEach((rp: any) => {
                 repostByReviewId[rp.review_id] = rp;
               });
 
-              extraReviews.forEach((r: any) => {
+                            extraReviews.forEach((r: any) => {
                 const repostInfo = repostByReviewId[r.id];
                 const reposterObj = Array.isArray(repostInfo?.users) ? repostInfo.users[0] : repostInfo?.users;
+                const isOwnRepost = repostInfo?.user_id === currentUserId;
 
                 reviews.push({
                   id: r.id,
@@ -321,8 +336,10 @@ if (latestCommentsRes.data) {
                   repost_count: 0,
                   my_reposted: false,
                   reposted_by: reposterObj?.username,
-                  repost_at: repostInfo?.created_at
-                });
+                  repost_at: repostInfo?.created_at,
+                  // 👇 NUEVO: marcar si es propio
+                  is_own_repost: isOwnRepost
+                } as any);
               });
 
               // Ordenar todo el feed por fecha (usando repost_at si existe)
@@ -343,7 +360,7 @@ if (latestCommentsRes.data) {
     return reviews;
   } catch (err) {
     console.error('fetchFeedReviews caught error:', err);
-    return [];
+    throw err;
   }
 }
 
@@ -440,7 +457,7 @@ export async function fetchUserReviews(
       supabase.from('likes').select('review_id, user_id, reaction').in('review_id', reviewIds),
       supabase.from('comments').select('review_id').in('review_id', reviewIds),
       supabase.from('reposts').select('review_id, user_id').in('review_id', reviewIds),
-      supabase.from('review_tags').select('review_id, tags(label, emoji)').in('review_id', reviewIds)
+      supabase.from('review_tags').select('review_id, tags(label, emoji, slug)').in('review_id', reviewIds),
     ]);
 
     if (likesRes.data) {
@@ -494,7 +511,7 @@ export async function fetchUserReviews(
         const item = reviews.find((r) => r.id === rt.review_id);
         if (item && rt.tags) {
           item.tags = item.tags || [];
-          item.tags.push({ label: rt.tags.label, emoji: rt.tags.emoji });
+          item.tags.push({ label: rt.tags.label, emoji: rt.tags.emoji, slug: rt.tags.slug });
         }
       });
     }
@@ -568,8 +585,11 @@ export async function fetchUserReposts(
         repost_count: 0,
         my_reposted: false,
         reposted_by: r.users?.username,
-        repost_at: rep.created_at
-      });
+        repost_at: rep.created_at,
+        combo_id: r.combo_id || null,
+        combo_order: r.combo_order ?? null,
+        is_combo_anchor: r.is_combo_anchor || false
+      } as any);
     }
 
         // ─────────────────────────────────────────────────────────────
@@ -584,6 +604,47 @@ export async function fetchUserReposts(
         }
       });
 
+      // Si hay combos, traer todas las patas de esos combos
+      const comboIds = Array.from(comboGroups.keys());
+      if (comboIds.length > 0) {
+        const { data: allPataRows } = await supabase
+          .from('reviews')
+          .select('id, rating, body, trip_date, route_label, vehicle_number, created_at, user_id, combo_id, combo_order, is_combo_anchor, users(id, username, avatar_url, profile_flair, username_color, avatar_border, achievement_level, visible_badges), lines(id, number, company_id, companies(short_name, color, logo_url))')
+          .in('combo_id', comboIds);
+
+        if (allPataRows) {
+          // Reemplazar el array del grupo con TODAS las patas
+          allPataRows.forEach((r: any) => {
+            const existing = comboGroups.get(r.combo_id) || [];
+            if (!existing.find((e) => e.id === r.id)) {
+              existing.push({
+                id: r.id,
+                rating: Number(r.rating) || 0,
+                body: r.body || '',
+                trip_date: r.trip_date,
+                created_at: r.created_at,
+                user_id: r.user_id || r.users?.id,
+                route_label: r.route_label,
+                vehicle_number: r.vehicle_number,
+                users: r.users,
+                lines: r.lines,
+                tags: [],
+                like_count: 0,
+                dislike_count: 0,
+                my_reaction: null,
+                comment_count: 0,
+                repost_count: 0,
+                my_reposted: false,
+                combo_id: r.combo_id,
+                combo_order: r.combo_order,
+                is_combo_anchor: r.is_combo_anchor
+              });
+            }
+          });
+        }
+      }
+
+      // Ahora sí, agrupar
       const absorbedIds = new Set<string>();
       const mergedResult: ReviewItem[] = [];
 
@@ -604,7 +665,6 @@ export async function fetchUserReposts(
 
         const avgRating = group.reduce((sum, g) => sum + (Number(g.rating) || 0), 0) / group.length;
 
-        // Preservar el `reposted_by` y `repost_at` del anchor
         mergedResult.push({
           ...anchor,
           combo_reviews: satélites,
@@ -622,7 +682,7 @@ export async function fetchUserReposts(
         supabase.from('likes').select('review_id, user_id, reaction').in('review_id', reviewIds),
         supabase.from('comments').select('review_id').in('review_id', reviewIds),
         supabase.from('reposts').select('review_id, user_id').in('review_id', reviewIds),
-        supabase.from('review_tags').select('review_id, tags(label, emoji)').in('review_id', reviewIds)
+        supabase.from('review_tags').select('review_id, tags(label, emoji, slug)').in('review_id', reviewIds),
       ]);
 
       if (likesRes.data) {
@@ -671,12 +731,12 @@ export async function fetchUserReposts(
         });
       }
 
-      if (tagsRes.data) {
+        if (tagsRes.data) {
         tagsRes.data.forEach((rt: any) => {
           const item = result.find((r) => r.id === rt.review_id);
           if (item && rt.tags) {
             item.tags = item.tags || [];
-            item.tags.push({ label: rt.tags.label, emoji: rt.tags.emoji });
+            item.tags.push({ label: rt.tags.label, emoji: rt.tags.emoji, slug: rt.tags.slug });
           }
         });
       }
@@ -689,7 +749,7 @@ export async function fetchUserReposts(
   }
 }
 
-// Fetch a single review with full metrics
+// Fetch a single review with full metrics (y si es parte de un combo, trae todas las patas)
 export async function fetchSingleReview(reviewId: string, currentUserId?: string | null): Promise<ReviewItem | null> {
   try {
     const { data: rawR, error } = await supabase
@@ -699,38 +759,85 @@ export async function fetchSingleReview(reviewId: string, currentUserId?: string
       .maybeSingle();
 
     if (error || !rawR) return null;
-    const r: any = rawR;
-    const userObj = Array.isArray(r.users) ? r.users[0] : r.users;
-    const lineObj = Array.isArray(r.lines) ? r.lines[0] : r.lines;
 
-    const review: ReviewItem = {
-      id: r.id,
-      rating: Number(r.rating) || 0,
-      body: r.body || '',
-      trip_date: r.trip_date,
-      created_at: r.created_at,
-      user_id: r.user_id || userObj?.id,
-      route_label: r.route_label,
-      vehicle_number: r.vehicle_number,
-      users: userObj,
-      lines: lineObj ? {
-        ...lineObj,
-        companies: Array.isArray(lineObj.companies) ? lineObj.companies[0] : lineObj.companies
-      } : undefined,
-      tags: [],
-      like_count: 0,
-      dislike_count: 0,
-      my_reaction: null,
-      comment_count: 0,
-      repost_count: 0,
-      my_reposted: false
-    };
+    // ─────────────────────────────────────────────────────────────
+    // 🚌 Si es parte de un combo, traer TODAS las patas del combo
+    // ─────────────────────────────────────────────────────────────
+    let allRows: any[] = [rawR];
+    if (rawR.combo_id) {
+      const { data: comboRows } = await supabase
+        .from('reviews')
+        .select('id, rating, body, trip_date, route_label, vehicle_number, created_at, user_id, combo_id, combo_order, is_combo_anchor, users(id, username, avatar_url, profile_flair, username_color, avatar_border, achievement_level, visible_badges), lines(id, number, company_id, companies(short_name, color, logo_url))')
+        .eq('combo_id', rawR.combo_id);
+
+      if (comboRows && comboRows.length > 0) {
+        allRows = comboRows;
+      }
+    }
+
+    const mapped: ReviewItem[] = allRows.map((r: any) => {
+      const userObj = Array.isArray(r.users) ? r.users[0] : r.users;
+      const lineObj = Array.isArray(r.lines) ? r.lines[0] : r.lines;
+      return {
+        id: r.id,
+        rating: Number(r.rating) || 0,
+        body: r.body || '',
+        trip_date: r.trip_date,
+        created_at: r.created_at,
+        user_id: r.user_id || userObj?.id,
+        route_label: r.route_label,
+        vehicle_number: r.vehicle_number,
+        users: userObj,
+        lines: lineObj
+          ? {
+              ...lineObj,
+              companies: Array.isArray(lineObj.companies) ? lineObj.companies[0] : lineObj.companies
+            }
+          : undefined,
+        tags: [],
+        like_count: 0,
+        dislike_count: 0,
+        my_reaction: null,
+        comment_count: 0,
+        repost_count: 0,
+        my_reposted: false,
+        combo_id: r.combo_id || null,
+        combo_order: r.combo_order ?? null,
+        is_combo_anchor: r.is_combo_anchor || false
+      };
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // 🚌 Agrupar el combo en una sola ReviewItem
+    // ─────────────────────────────────────────────────────────────
+    let review: ReviewItem;
+
+    if (mapped.length > 1) {
+      mapped.sort((a, b) => (a.combo_order ?? 0) - (b.combo_order ?? 0));
+      const anchor = mapped.find((g) => g.is_combo_anchor) || mapped[mapped.length - 1];
+      const satellites = mapped.filter((g) => g.id !== anchor.id);
+      const avgRating = mapped.reduce((sum, g) => sum + (Number(g.rating) || 0), 0) / mapped.length;
+
+      review = {
+        ...anchor,
+        combo_reviews: satellites,
+        combo_average_rating: Number(avgRating.toFixed(1))
+      };
+    } else {
+      review = mapped[0];
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Enriquecer con métricas (likes, comments, reposts, tags)
+    // Las interacciones van al anchor, que es el que recibe todo
+    // ─────────────────────────────────────────────────────────────
+    const effectiveReviewId = review.id;
 
     const [likesRes, commentsRes, repostsRes, tagsRes] = await Promise.all([
-      supabase.from('likes').select('user_id, reaction').eq('review_id', reviewId),
-      supabase.from('comments').select('id').eq('review_id', reviewId),
-      supabase.from('reposts').select('user_id').eq('review_id', reviewId),
-      supabase.from('review_tags').select('tags(label, emoji)').eq('review_id', reviewId)
+      supabase.from('likes').select('user_id, reaction').eq('review_id', effectiveReviewId),
+      supabase.from('comments').select('id').eq('review_id', effectiveReviewId),
+      supabase.from('reposts').select('user_id').eq('review_id', effectiveReviewId),
+      supabase.from('review_tags').select('tags(label, emoji, slug)').eq('review_id', effectiveReviewId)
     ]);
 
     if (likesRes.data) {
@@ -764,7 +871,8 @@ export async function fetchSingleReview(reviewId: string, currentUserId?: string
     if (tagsRes.data) {
       review.tags = tagsRes.data.map((rt: any) => ({
         label: rt.tags?.label || '',
-        emoji: rt.tags?.emoji
+        emoji: rt.tags?.emoji,
+        slug: rt.tags?.slug
       })).filter((t: any) => t.label);
     }
 
@@ -897,5 +1005,572 @@ export async function adminDeleteReview(
     return { ok: true, deletedCount: count || 0, wasCombo: isCombo };
   } catch (err: any) {
     return { ok: false, deletedCount: 0, error: err.message, wasCombo: false };
+  }
+}
+
+/**
+ * Trae las top N líneas con más omniposteos en los últimos 7 días.
+ * Devuelve un array de { line_id, line_number, company_name, company_color, count }.
+ */
+export async function fetchTopLinesLast7Days(
+  limit: number = 5
+): Promise<Array<{
+  line_id: string;
+  line_number: string;
+  company_name?: string;
+  company_color?: string;
+  count: number;
+}>> {
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('line_id, lines(id, number, companies(short_name, color))')
+      .gte('created_at', sevenDaysAgo.toISOString())
+      .not('line_id', 'is', null);
+
+    if (error || !data) {
+      console.warn('fetchTopLinesLast7Days error:', error?.message);
+      return [];
+    }
+
+    // Contar por line_id
+    const counts = new Map<string, {
+      line_id: string;
+      line_number: string;
+      company_name?: string;
+      company_color?: string;
+      count: number;
+    }>();
+
+    data.forEach((r: any) => {
+      const line = Array.isArray(r.lines) ? r.lines[0] : r.lines;
+      if (!line?.id) return;
+      const key = line.id;
+      if (!counts.has(key)) {
+        counts.set(key, {
+          line_id: line.id,
+          line_number: line.number || '—',
+          company_name: line.companies?.short_name,
+          company_color: line.companies?.color,
+          count: 0
+        });
+      }
+      counts.get(key)!.count += 1;
+    });
+
+    return Array.from(counts.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  } catch (err) {
+    console.warn('fetchTopLinesLast7Days caught:', err);
+    return [];
+  }
+}
+
+/**
+ * Trae las reviews asociadas a una línea.
+ * Si alguna review es parte de una combinación, trae TODAS las patas de esa combinación
+ * y las agrupa en un solo ReviewItem. Enriquece con métricas (likes, comments, reposts, tags).
+ */
+export async function fetchReviewsByLine(
+  lineId: string,
+  currentUserId?: string | null
+): Promise<ReviewItem[]> {
+  try {
+    // 1. Traer las reviews que matchean esta línea
+    const { data: baseRows, error } = await supabase
+      .from('reviews')
+      .select('id, rating, body, trip_date, route_label, vehicle_number, created_at, user_id, combo_id, combo_order, is_combo_anchor, users(id, username, avatar_url, profile_flair, username_color, avatar_border, achievement_level, visible_badges), lines(id, number, company_id, companies(short_name, color, logo_url))')
+      .eq('line_id', lineId)
+      .order('created_at', { ascending: false });
+
+    if (error || !baseRows) {
+      console.warn('fetchReviewsByLine error:', error?.message);
+      return [];
+    }
+
+    if (baseRows.length === 0) return [];
+
+    // 2. Detectar combo_ids presentes en las reviews que matchean la línea
+    const comboIds = Array.from(
+      new Set(baseRows.map((r: any) => r.combo_id).filter(Boolean))
+    );
+
+    let allRows: any[] = baseRows;
+
+    // 3. Si hay combos, traer TODAS las patas de esos combos
+    if (comboIds.length > 0) {
+      const { data: comboRows } = await supabase
+        .from('reviews')
+        .select('id, rating, body, trip_date, route_label, vehicle_number, created_at, user_id, combo_id, combo_order, is_combo_anchor, users(id, username, avatar_url, profile_flair, username_color, avatar_border, achievement_level, visible_badges), lines(id, number, company_id, companies(short_name, color, logo_url))')
+        .in('combo_id', comboIds);
+
+      if (comboRows && comboRows.length > 0) {
+        // Unir y deduplicar por id
+        const map = new Map<string, any>();
+        baseRows.forEach((r: any) => map.set(r.id, r));
+        comboRows.forEach((r: any) => map.set(r.id, r));
+        allRows = Array.from(map.values());
+      }
+    }
+
+    // 4. Mapear como en fetchFeedReviews
+    const reviews: ReviewItem[] = allRows.map((r: any) => ({
+      id: r.id,
+      rating: Number(r.rating) || 0,
+      body: r.body || '',
+      trip_date: r.trip_date,
+      created_at: r.created_at,
+      user_id: r.user_id || r.users?.id,
+      route_label: r.route_label,
+      vehicle_number: r.vehicle_number,
+      users: r.users,
+      lines: r.lines,
+      tags: [],
+      like_count: 0,
+      dislike_count: 0,
+      my_reaction: null,
+      comment_count: 0,
+      repost_count: 0,
+      my_reposted: false,
+      combo_id: r.combo_id || null,
+      combo_order: r.combo_order ?? null,
+      is_combo_anchor: r.is_combo_anchor || false
+    }));
+
+    // 5. Agrupar combos (bloque idéntico a fetchFeedReviews)
+    if (reviews.length > 0) {
+      const comboGroups = new Map<string, ReviewItem[]>();
+      reviews.forEach((r) => {
+        if (r.combo_id) {
+          if (!comboGroups.has(r.combo_id)) comboGroups.set(r.combo_id, []);
+          comboGroups.get(r.combo_id)!.push(r);
+        }
+      });
+
+      const absorbedIds = new Set<string>();
+      const mergedReviews: ReviewItem[] = [];
+
+      reviews.forEach((r) => {
+        if (!r.combo_id) {
+          mergedReviews.push(r);
+          return;
+        }
+        if (absorbedIds.has(r.id)) return;
+
+        const group = comboGroups.get(r.combo_id) || [];
+        group.sort((a, b) => (a.combo_order ?? 0) - (b.combo_order ?? 0));
+
+        const anchor = group.find((g) => g.is_combo_anchor) || group[group.length - 1];
+        const satélites = group.filter((g) => g.id !== anchor.id);
+
+        group.forEach((g) => absorbedIds.add(g.id));
+
+        const avgRating = group.reduce((sum, g) => sum + (Number(g.rating) || 0), 0) / group.length;
+
+        mergedReviews.push({
+          ...anchor,
+          combo_reviews: satélites,
+          combo_average_rating: Number(avgRating.toFixed(1))
+        });
+      });
+
+      reviews.length = 0;
+      reviews.push(...mergedReviews);
+
+      // Reordenar por fecha del anchor
+      reviews.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+
+    if (reviews.length === 0) return [];
+
+    // 6. Enriquecer con tags, likes, comments, reposts
+    const reviewIds = reviews.map((r) => r.id);
+
+    const [tagsRes, likesRes, commentsRes, repostsRes, latestCommentsRes] = await Promise.all([
+      supabase.from('review_tags').select('review_id, tags(label, emoji, slug)').in('review_id', reviewIds),
+      supabase.from('likes').select('review_id, user_id, reaction').in('review_id', reviewIds),
+      supabase.from('comments').select('review_id').in('review_id', reviewIds),
+      supabase.from('reposts').select('review_id, user_id').in('review_id', reviewIds),
+      supabase
+        .from('comments')
+        .select('id, review_id, body, created_at, user_id, users(username, avatar_url, profile_flair, achievement_level, visible_badges)')
+        .in('review_id', reviewIds)
+        .order('created_at', { ascending: false })
+    ]);
+
+    // Última charla
+    if (latestCommentsRes.data) {
+      const latestByReview: Record<string, any> = {};
+      latestCommentsRes.data.forEach((c: any) => {
+        latestByReview[c.review_id] = c;
+      });
+      reviews.forEach((r) => {
+        const c = latestByReview[r.id];
+        if (c) {
+          const author = Array.isArray(c.users) ? c.users[0] : c.users;
+          (r as any).latest_comment = {
+            id: c.id,
+            review_id: c.review_id,
+            user_id: c.user_id,
+            body: c.body,
+            created_at: c.created_at,
+            users: author
+              ? {
+                  username: author.username,
+                  avatar_url: author.avatar_url,
+                  profile_flair: author.profile_flair,
+                  achievement_level: author.achievement_level,
+                  visible_badges: author.visible_badges
+                }
+              : null
+          };
+        }
+      });
+    }
+
+    // Tags
+    if (tagsRes.data) {
+      const tagsByReview: Record<string, { label: string; emoji?: string; slug?: string }[]> = {};
+      tagsRes.data.forEach((rt: any) => {
+        if (!tagsByReview[rt.review_id]) tagsByReview[rt.review_id] = [];
+        if (rt.tags) {
+          tagsByReview[rt.review_id].push({
+            label: rt.tags.label,
+            emoji: rt.tags.emoji,
+            slug: rt.tags.slug
+          });
+        }
+      });
+      reviews.forEach((r) => {
+        r.tags = tagsByReview[r.id] || [];
+      });
+    }
+
+    // Likes
+    if (likesRes.data) {
+      const reactionsByReview: Record<string, Record<string, 'like' | 'dislike'>> = {};
+      likesRes.data.forEach((l: any) => {
+        if (!reactionsByReview[l.review_id]) reactionsByReview[l.review_id] = {};
+        reactionsByReview[l.review_id][l.user_id] = l.reaction === 'dislike' ? 'dislike' : 'like';
+      });
+      reviews.forEach((r) => {
+        const userReactions = reactionsByReview[r.id] || {};
+        let likes = 0;
+        let dislikes = 0;
+        Object.values(userReactions).forEach((reaction) => {
+          if (reaction === 'dislike') dislikes++;
+          else likes++;
+        });
+        r.like_count = likes;
+        r.dislike_count = dislikes;
+        r.my_reaction = currentUserId ? userReactions[currentUserId] || null : null;
+      });
+    }
+
+    // Comments count
+    if (commentsRes.data) {
+      const commentsMap: Record<string, number> = {};
+      commentsRes.data.forEach((c: any) => {
+        commentsMap[c.review_id] = (commentsMap[c.review_id] || 0) + 1;
+      });
+      reviews.forEach((r) => {
+        r.comment_count = commentsMap[r.id] || 0;
+      });
+    }
+
+    // Reposts
+    if (repostsRes.data) {
+      const repostUsersByReview: Record<string, Set<string>> = {};
+      repostsRes.data.forEach((rp: any) => {
+        if (!repostUsersByReview[rp.review_id]) repostUsersByReview[rp.review_id] = new Set();
+        repostUsersByReview[rp.review_id].add(rp.user_id);
+      });
+      reviews.forEach((r) => {
+        const usersSet = repostUsersByReview[r.id];
+        r.repost_count = usersSet ? usersSet.size : 0;
+        r.my_reposted = !!(currentUserId && usersSet && usersSet.has(currentUserId));
+      });
+    }
+
+    return reviews;
+  } catch (err) {
+    console.error('fetchReviewsByLine caught error:', err);
+    return [];
+  }
+}
+
+/**
+ * Trae las reviews que tienen un tag específico (por slug).
+ * Con paginación por offset.
+ */
+export async function fetchReviewsByTag(
+  tagSlug: string,
+  currentUserId?: string | null,
+  offset: number = 0,
+  limit: number = 30
+): Promise<ReviewItem[]> {
+  try {
+    // 1. Obtener el tag_id a partir del slug
+    const { data: tagData, error: tagError } = await supabase
+      .from('tags')
+      .select('id, label, emoji, category')
+      .eq('slug', tagSlug)
+      .maybeSingle();
+
+    if (tagError || !tagData) {
+      console.warn('fetchReviewsByTag: tag no encontrado', tagSlug);
+      return [];
+    }
+
+    // 2. Traer los review_ids que tienen ese tag
+    const { data: reviewTagRows, error: rtError } = await supabase
+      .from('review_tags')
+      .select('review_id')
+      .eq('tag_id', tagData.id);
+
+    if (rtError || !reviewTagRows || reviewTagRows.length === 0) {
+      return [];
+    }
+
+    const reviewIds = reviewTagRows.map((r: any) => r.review_id).filter(Boolean);
+    if (reviewIds.length === 0) return [];
+
+    // 3. Traer las reviews paginadas
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('id, rating, body, trip_date, route_label, vehicle_number, created_at, user_id, combo_id, combo_order, is_combo_anchor, users(id, username, avatar_url, profile_flair, username_color, avatar_border, achievement_level, visible_badges), lines(id, number, company_id, companies(short_name, color, logo_url))')
+      .in('id', reviewIds)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error || !data) {
+      console.warn('fetchReviewsByTag error:', error?.message);
+      return [];
+    }
+
+    // 4. Mapear como en fetchFeedReviews
+    const reviews: ReviewItem[] = data.map((r: any) => ({
+      id: r.id,
+      rating: Number(r.rating) || 0,
+      body: r.body || '',
+      trip_date: r.trip_date,
+      created_at: r.created_at,
+      user_id: r.user_id || r.users?.id,
+      route_label: r.route_label,
+      vehicle_number: r.vehicle_number,
+      users: r.users,
+      lines: r.lines,
+      tags: [],
+      like_count: 0,
+      dislike_count: 0,
+      my_reaction: null,
+      comment_count: 0,
+      repost_count: 0,
+      my_reposted: false,
+      combo_id: r.combo_id || null,
+      combo_order: r.combo_order ?? null,
+      is_combo_anchor: r.is_combo_anchor || false
+    }));
+
+    // 5. Agrupar combos (mismo bloque que en fetchFeedReviews)
+    if (reviews.length > 0) {
+      const comboGroups = new Map<string, ReviewItem[]>();
+      reviews.forEach((r) => {
+        if (r.combo_id) {
+          if (!comboGroups.has(r.combo_id)) comboGroups.set(r.combo_id, []);
+          comboGroups.get(r.combo_id)!.push(r);
+        }
+      });
+
+      const absorbedIds = new Set<string>();
+      const mergedReviews: ReviewItem[] = [];
+
+      reviews.forEach((r) => {
+        if (!r.combo_id) {
+          mergedReviews.push(r);
+          return;
+        }
+        if (absorbedIds.has(r.id)) return;
+
+        const group = comboGroups.get(r.combo_id) || [];
+        group.sort((a, b) => (a.combo_order ?? 0) - (b.combo_order ?? 0));
+
+        const anchor = group.find((g) => g.is_combo_anchor) || group[group.length - 1];
+        const satélites = group.filter((g) => g.id !== anchor.id);
+
+        group.forEach((g) => absorbedIds.add(g.id));
+
+        const avgRating = group.reduce((sum, g) => sum + (Number(g.rating) || 0), 0) / group.length;
+
+        mergedReviews.push({
+          ...anchor,
+          combo_reviews: satélites,
+          combo_average_rating: Number(avgRating.toFixed(1))
+        });
+      });
+
+      reviews.length = 0;
+      reviews.push(...mergedReviews);
+      reviews.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+
+    if (reviews.length === 0) return [];
+
+    // 6. Enriquecer con tags, likes, comments, reposts
+    const finalReviewIds = reviews.map((r) => r.id);
+
+    const [tagsRes, likesRes, commentsRes, repostsRes, latestCommentsRes] = await Promise.all([
+      supabase.from('review_tags').select('review_id, tags(label, emoji, slug)').in('review_id', reviewIds),
+      supabase.from('likes').select('review_id, user_id, reaction').in('review_id', finalReviewIds),
+      supabase.from('comments').select('review_id').in('review_id', finalReviewIds),
+      supabase.from('reposts').select('review_id, user_id').in('review_id', finalReviewIds),
+      supabase
+        .from('comments')
+        .select('id, review_id, body, created_at, user_id, users(username, avatar_url, profile_flair, achievement_level, visible_badges)')
+        .in('review_id', finalReviewIds)
+        .order('created_at', { ascending: false })
+    ]);
+
+    // Última charla
+    if (latestCommentsRes.data) {
+      const latestByReview: Record<string, any> = {};
+      latestCommentsRes.data.forEach((c: any) => {
+        latestByReview[c.review_id] = c;
+      });
+      reviews.forEach((r) => {
+        const c = latestByReview[r.id];
+        if (c) {
+          const author = Array.isArray(c.users) ? c.users[0] : c.users;
+          (r as any).latest_comment = {
+            id: c.id,
+            review_id: c.review_id,
+            user_id: c.user_id,
+            body: c.body,
+            created_at: c.created_at,
+            users: author
+              ? {
+                  username: author.username,
+                  avatar_url: author.avatar_url,
+                  profile_flair: author.profile_flair,
+                  achievement_level: author.achievement_level,
+                  visible_badges: author.visible_badges
+                }
+              : null
+          };
+        }
+      });
+    }
+
+    // Tags
+    if (tagsRes.data) {
+      const tagsByReview: Record<string, { label: string; emoji?: string; slug?: string }[]> = {};
+      tagsRes.data.forEach((rt: any) => {
+        if (!tagsByReview[rt.review_id]) tagsByReview[rt.review_id] = [];
+        if (rt.tags) {
+          tagsByReview[rt.review_id].push({
+            label: rt.tags.label,
+            emoji: rt.tags.emoji,
+            slug: rt.tags.slug
+          });
+        }
+      });
+      reviews.forEach((r) => {
+        r.tags = tagsByReview[r.id] || [];
+      });
+    }
+
+    // Likes
+    if (likesRes.data) {
+      const reactionsByReview: Record<string, Record<string, 'like' | 'dislike'>> = {};
+      likesRes.data.forEach((l: any) => {
+        if (!reactionsByReview[l.review_id]) reactionsByReview[l.review_id] = {};
+        reactionsByReview[l.review_id][l.user_id] = l.reaction === 'dislike' ? 'dislike' : 'like';
+      });
+      reviews.forEach((r) => {
+        const userReactions = reactionsByReview[r.id] || {};
+        let likes = 0;
+        let dislikes = 0;
+        Object.values(userReactions).forEach((reaction) => {
+          if (reaction === 'dislike') dislikes++;
+          else likes++;
+        });
+        r.like_count = likes;
+        r.dislike_count = dislikes;
+        r.my_reaction = currentUserId ? userReactions[currentUserId] || null : null;
+      });
+    }
+
+    // Comments count
+    if (commentsRes.data) {
+      const commentsMap: Record<string, number> = {};
+      commentsRes.data.forEach((c: any) => {
+        commentsMap[c.review_id] = (commentsMap[c.review_id] || 0) + 1;
+      });
+      reviews.forEach((r) => {
+        r.comment_count = commentsMap[r.id] || 0;
+      });
+    }
+
+    // Reposts
+    if (repostsRes.data) {
+      const repostUsersByReview: Record<string, Set<string>> = {};
+      repostsRes.data.forEach((rp: any) => {
+        if (!repostUsersByReview[rp.review_id]) repostUsersByReview[rp.review_id] = new Set();
+        repostUsersByReview[rp.review_id].add(rp.user_id);
+      });
+      reviews.forEach((r) => {
+        const usersSet = repostUsersByReview[r.id];
+        r.repost_count = usersSet ? usersSet.size : 0;
+        r.my_reposted = !!(currentUserId && usersSet && usersSet.has(currentUserId));
+      });
+    }
+
+    return reviews;
+  } catch (err) {
+    console.error('fetchReviewsByTag caught error:', err);
+    return [];
+  }
+}
+
+/**
+ * Trae los metadatos de un tag (label, emoji, categoría, total de usos).
+ */
+export async function fetchTagMetadata(tagSlug: string): Promise<{
+  id: string;
+  slug: string;
+  label: string;
+  emoji?: string;
+  category?: string;
+  usageCount: number;
+} | null> {
+  try {
+    const { data: tagData, error: tagError } = await supabase
+      .from('tags')
+      .select('id, slug, label, emoji, category')
+      .eq('slug', tagSlug)
+      .maybeSingle();
+
+    if (tagError || !tagData) return null;
+
+    const { count } = await supabase
+      .from('review_tags')
+      .select('review_id', { count: 'exact', head: true })
+      .eq('tag_id', tagData.id);
+
+    return {
+      id: tagData.id,
+      slug: tagData.slug,
+      label: tagData.label,
+      emoji: tagData.emoji,
+      category: tagData.category,
+      usageCount: count || 0
+    };
+  } catch (err) {
+    console.warn('fetchTagMetadata error:', err);
+    return null;
   }
 }

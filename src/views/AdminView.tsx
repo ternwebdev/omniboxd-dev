@@ -262,6 +262,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, isAuthCheckin
     }
   }, [currentUser]);
 
+  // ─────────────────────────────────────────────────────────────
+  // ⚠️ TODOS los hooks van acá arriba, antes de los return condicionales
+  // ─────────────────────────────────────────────────────────────
+  const [deleteReviewModal, setDeleteReviewModal] = useState<any | null>(null);
+  const [isDeletingReview, setIsDeletingReview] = useState(false);
+
   // Auth Guard: If still verifying auth state, show loading spinner instead of kicking or locking
   if (isAuthChecking) {
     return (
@@ -702,9 +708,6 @@ END $$;`
   };
 
   // --- Handlers: Reviews Moderation ---
-  // --- Handlers: Reviews Moderation ---
-  const [deleteReviewModal, setDeleteReviewModal] = useState<any | null>(null);
-  const [isDeletingReview, setIsDeletingReview] = useState(false);
 
   const handleDeleteReview = (review: any) => {
     // Si es combo, abrir el modal de opciones

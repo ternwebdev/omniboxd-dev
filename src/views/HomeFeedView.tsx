@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sparkles, Star, RefreshCw, Bus, CheckCircle2, X, Search, LogIn, TrendingUp, Compass, Building2, ChevronDown, Filter } from 'lucide-react';
 import { ReviewItem, UserProfile } from '../types';
 import { ReviewCard } from '../components/ReviewCard';
-import { fetchFeedReviews, subscribeToRealtimeUpdates, supabase } from '../lib/supabase';
+import { fetchFeedReviews, fetchTopLinesLast7Days, subscribeToRealtimeUpdates, supabase } from '../lib/supabase';
 
 interface HomeFeedViewProps {
   currentUser: UserProfile | null;
@@ -19,6 +19,7 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
 }) => {
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'all' | 'favorites'>('all');
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [isCompanyMenuOpen, setIsCompanyMenuOpen] = useState<boolean>(false);
@@ -32,9 +33,27 @@ export const HomeFeedView: React.FC<HomeFeedViewProps> = ({
   const PAGE_SIZE = 30;
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
+    // 🏆 Top líneas últimos 7 días
+  const [topLines, setTopLines] = useState<Array<{
+    line_id: string;
+    line_number: string;
+    company_name?: string;
+    company_color?: string;
+    count: number;
+  }>>([]);
+  const [isMobileTopOpen, setIsMobileTopOpen] = useState(false);
+  const [isMobileTopDismissed, setIsMobileTopDismissed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('omniboxd_toplines_dismissed') === '1';
+    } catch {
+      return false;
+    }
+  });
+
 const loadReviews = useCallback(async () => {
   setIsLoading(true);
   setHasMore(true);
+  setLoadError(false);
   try {
     const data = await fetchFeedReviews(currentUser?.id, 0, PAGE_SIZE);
     setReviews(data);
@@ -43,8 +62,9 @@ const loadReviews = useCallback(async () => {
     setHasMore(baseReviewsCount >= PAGE_SIZE);
     setHasNewPostsPending(0);
   } catch (e) {
-    console.error('Error loading feed reviews:', e);
-  } finally {
+  console.error('Error loading feed reviews:', e);
+  setLoadError(true);
+} finally {
     setIsLoading(false);
   }
 }, [currentUser?.id]);
@@ -199,30 +219,15 @@ useEffect(() => {
     return true;
   });
 
-  // Top active lines calculated from recent reviews for the desktop sidebar widget
-const activeLines = React.useMemo(() => {
-  const counts: Record<string, { count: number; line: string; lineId?: string; companyName?: string; companyColor?: string }> = {};
-  for (const r of reviews) {
-    const lineNumber = r.lines?.number;
-    if (!lineNumber) continue;
-    const companyName = r.lines?.companies?.short_name;
-    const companyColor = r.lines?.companies?.color;
-    const key = `${lineNumber}-${companyName || ''}`;
-    if (!counts[key]) {
-      counts[key] = {
-        count: 0,
-        line: lineNumber,
-        lineId: r.lines?.id,
-        companyName,
-        companyColor
-      };
-    }
-    counts[key].count += 1;
-  }
-  return Object.values(counts)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
-}, [reviews]);
+  // 🏆 Top líneas de los últimos 7 días (fetch separado, cuenta todo el período)
+  const loadTopLines = React.useCallback(async () => {
+    const data = await fetchTopLinesLast7Days(5);
+    setTopLines(data);
+  }, []);
+
+  useEffect(() => {
+    loadTopLines();
+  }, [loadTopLines]);
 
   return (
     <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 pb-24 space-y-4">
@@ -405,7 +410,64 @@ const activeLines = React.useMemo(() => {
             </button>
           )}
 
-          {/* Reviews list */}
+          {/* 🏆 Top líneas últimos 7 días (mobile only, colapsable) */}
+          {topLines.length > 0 && !isMobileTopDismissed && (
+            <div className="lg:hidden bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-sm overflow-hidden">
+              {/* Header colapsable */}
+              <button
+                type="button"
+                onClick={() => setIsMobileTopOpen((v) => !v)}
+                className="w-full flex items-center justify-between gap-2 p-3 text-left hover:bg-[var(--surface-2)]/40 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <TrendingUp className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-xs font-display font-bold uppercase tracking-wider text-[var(--text)] truncate">
+                    Líneas con más viajes
+                  </span>
+                  <span className="text-[10px] text-[var(--text-dim)] shrink-0">· 7 días</span>
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 text-[var(--text-muted)] shrink-0 transition-transform ${
+                    isMobileTopOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Contenido expandido */}
+              {isMobileTopOpen && (
+                <div className="px-3 pb-3 space-y-1.5 border-t border-[var(--border)] pt-3 animate-in fade-in duration-150">
+                  {topLines.map((item, idx) => (
+                    <button
+                      key={item.line_id}
+                      onClick={() => onNavigate('line', item.line_id)}
+                      className="w-full flex items-center justify-between p-2 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-hover)] border border-[var(--border-soft)] transition-colors cursor-pointer text-left group"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[10px] font-mono font-bold text-[var(--text-dim)] w-3 shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span
+                          className="px-2 py-0.5 rounded font-mono font-bold text-xs text-white shadow-xs"
+                          style={{ backgroundColor: item.company_color || '#3b82f6' }}
+                        >
+                          {item.line_number}
+                        </span>
+                        {item.company_name && (
+                          <span className="text-xs text-[var(--text-muted)] truncate group-hover:text-[var(--text)]">
+                            {item.company_name}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-mono text-[var(--text-muted)] shrink-0">
+                        {item.count} {item.count === 1 ? 'viaje' : 'viajes'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
      {/* Reviews list */}
 {isLoading ? (
   <div className="space-y-3">
@@ -492,8 +554,66 @@ const activeLines = React.useMemo(() => {
                   </div>
                 </div>
               )
+                        ) : loadError ? (
+              /* Error de carga: mostrar mensaje de error + reporte */
+              <div className="text-center py-12 px-4 rounded-2xl bg-[var(--surface)] border-2 border-red-400/40">
+                <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-400/30 flex items-center justify-center mx-auto mb-3 text-2xl">
+                  ⚠️
+                </div>
+                <h3 className="font-display font-bold text-base text-[var(--text)] mb-1">
+                  No pudimos cargar los omniposts
+                </h3>
+                <p className="text-xs text-[var(--text-muted)] max-w-md mx-auto mb-4 leading-relaxed">
+                  Hubo un problema al conectar con el servidor. Puede ser algo temporal o un corte de red.
+                  Probá de nuevo en unos segundos.
+                </p>
+
+                <button
+                  onClick={loadReviews}
+                  className="px-4 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs tracking-wide transition-colors cursor-pointer inline-flex items-center gap-2"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Reintentar ahora</span>
+                </button>
+
+                <div className="mt-6 pt-5 border-t border-[var(--border)]">
+                  <p className="text-[11px] text-[var(--text-dim)] mb-2">
+                    ¿El problema sigue? Avisanos por redes y lo revisamos:
+                  </p>
+                  <div className="flex items-center justify-center gap-3">
+                    <a
+                      href="https://instagram.com/omniboxd.app"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-pink-400 transition-colors"
+                    >
+                      <div className="w-6 h-6 rounded-md bg-pink-500/10 border border-pink-500/20 flex items-center justify-center">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                        </svg>
+                      </div>
+                      <span className="font-mono">@omniboxd.app</span>
+                    </a>
+                    <a
+                      href="https://twitter.com/omniboxd"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-sky-400 transition-colors"
+                    >
+                      <div className="w-6 h-6 rounded-md bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                      </div>
+                      <span className="font-mono">@omniboxd</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
             ) : (
-              /* All tab empty */
+              /* All tab empty (sin error, simplemente no hay posts) */
               <div className="text-center py-12 px-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
                 <div className="w-14 h-14 rounded-full bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center mx-auto mb-3 text-2xl">
                   🚌
@@ -572,8 +692,8 @@ const activeLines = React.useMemo(() => {
             </button>
           </div>
 
-          {/* Active Lines / Tendencia de Líneas */}
-          {activeLines.length > 0 && (
+          {/* Active Lines / Tendencia de Líneas (últimos 7 días) */}
+          {topLines.length > 0 && (
             <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm space-y-3">
               <div className="flex items-center justify-between border-b border-[var(--border-soft)] pb-2">
                 <div className="flex items-center gap-2">
@@ -582,25 +702,26 @@ const activeLines = React.useMemo(() => {
                     Líneas con más viajes
                   </h3>
                 </div>
+                <span className="text-[10px] text-[var(--text-dim)]">Últimos 7 días</span>
               </div>
 
               <div className="space-y-2">
-                {activeLines.map((item) => (
+                {topLines.map((item) => (
                   <button
-                    key={`${item.line}-${item.companyName || ''}`}
-                    onClick={() => onNavigate('search', item.line)}
+                    key={item.line_id}
+                    onClick={() => onNavigate('line', item.line_id)}
                     className="w-full flex items-center justify-between p-2 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-hover)] border border-[var(--border-soft)] transition-colors cursor-pointer text-left group"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span
                         className="px-2 py-0.5 rounded font-mono font-bold text-xs text-white shadow-xs"
-                        style={{ backgroundColor: item.companyColor || '#3b82f6' }}
+                        style={{ backgroundColor: item.company_color || '#3b82f6' }}
                       >
-                        {item.line}
+                        {item.line_number}
                       </span>
-                      {item.companyName && (
+                      {item.company_name && (
                         <span className="text-xs text-[var(--text-muted)] truncate group-hover:text-[var(--text)]">
-                          {item.companyName}
+                          {item.company_name}
                         </span>
                       )}
                     </div>

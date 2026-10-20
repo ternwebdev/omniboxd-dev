@@ -131,7 +131,8 @@ const handleRegister = async (e: React.FormEvent) => {
       if (error) throw error;
 
 if (data.user) {
-  // Ensure profile row (try full payload, fallback if column missing)
+  // 1. Crear el perfil básico (RLS permite porque el trigger handle_new_user ya lo crea,
+  //    pero hacemos upsert para asegurar los datos adicionales)
   try {
     await supabase.from('users').upsert({
       id: data.user.id,
@@ -141,10 +142,7 @@ if (data.user) {
       links: filteredLinks.length > 0 ? filteredLinks : null,
       location: cleanLocation || null,
       birth_date: cleanBirthDate,
-      birth_date_visibility: cleanBirthDateVis,
-      // 👇 NUEVO: aceptación de términos
-      terms_accepted_at: new Date().toISOString(),
-      terms_version: TERMS_VERSION
+      birth_date_visibility: cleanBirthDateVis
     });
   } catch (e) {
     try {
@@ -155,10 +153,13 @@ if (data.user) {
         bio: cleanBio || null,
         links: filteredLinks.length > 0 ? filteredLinks : null
       });
-      // 👇 NUEVO: intentar guardar términos en un segundo intento
-      await acceptTerms(data.user.id);
     } catch (err) {}
   }
+
+  // ⚠️ NO seteamos terms_version acá.
+  // Sin sesión activa (signUp con confirmación por email), auth.uid() es null
+  // y RLS bloquea el UPDATE. La aceptación se hace después, la primera vez
+  // que la usuaria se loguea y ve el modal de términos.
 
         // Persistent fallback in localStorage
         try {
@@ -170,6 +171,10 @@ if (data.user) {
         } catch (e) {}
 
 if (data.session) {
+  // La usuaria ya tiene sesión activa (signUp sin confirmación por email).
+  // Ahora SÍ podemos aceptar los términos.
+  await acceptTerms(data.user.id);
+
   onLoginSuccess({
     id: data.user.id,
     username: cleanUsername,
@@ -179,7 +184,7 @@ if (data.session) {
     location: cleanLocation || null,
     birth_date: cleanBirthDate,
     birth_date_visibility: cleanBirthDateVis,
-    // 👇 NUEVO: para que `hasAcceptedCurrentTerms` dé true de una
+    // Marcamos localmente que ya aceptó (para que el modal no aparezca)
     terms_accepted_at: new Date().toISOString(),
     terms_version: TERMS_VERSION
   });
@@ -400,7 +405,7 @@ if (data.session) {
           <form onSubmit={handleRegister} className="space-y-3">
             <div>
               <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-                Nombre de usuario
+                Nombre de usuario <span className="required-asterisk">*</span>
               </label>
               <input
                 type="text"
@@ -416,7 +421,7 @@ if (data.session) {
 
             <div>
               <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-                Email
+                Email <span className="required-asterisk">*</span>
               </label>
               <input
                 type="email"
@@ -430,7 +435,7 @@ if (data.session) {
 
             <div>
               <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-                Contraseña
+                Contraseña <span className="required-asterisk">*</span>
               </label>
               <input
                 type="password"

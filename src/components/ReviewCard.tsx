@@ -22,6 +22,11 @@ import { MentionAutocomplete, MentionUser } from './MentionAutocomplete';
 import { StarRating } from './StarRating';
 import { NewReviewModal } from './NewReviewModal';
 import { pushNotification, removeNotificationsByReviewAndKind } from '../lib/notifications';
+import { useSignupPrompt } from '../lib/signupPrompt';
+import { playSound } from '../lib/sounds';
+import { fireChiflidoConfettiAt } from '../lib/confetti';
+
+
 
 const OmniboxdBadge: React.FC<{ slug: string; complete?: boolean }> = ({ slug, complete = false }) => {
   const [hasSvg, setHasSvg] = useState(true);
@@ -57,6 +62,34 @@ interface ReviewCardProps {
   onReviewUpdated?: () => void;
 }
 
+/**
+ * Determina el color de las estrellas según el nivel del autor y el rating.
+ * - Nivel 4.5+ con rating 4.5+ → violeta
+ * - Nivel 4.5+ con rating <= 1 → plata
+ * - Nivel 2.5+ con rating 3.5-4 → celeste
+ * - Nivel 2.5+ con rating 1.5-2 → plata apagada
+ * - Resto → verde
+ */
+function getStarColor(authorLevel: number, rating: number): string {
+  if (authorLevel >= 4.5 && rating >= 4.5) return 'text-violet-400';
+  if (authorLevel >= 4.5 && rating <= 1) return 'text-slate-300';
+  if (authorLevel >= 2.5 && rating >= 3.5 && rating <= 4) return 'text-sky-400';
+  if (authorLevel >= 2.5 && rating >= 1.5 && rating <= 2) return 'text-slate-300/70';
+  return 'text-emerald-400';
+}
+
+/**
+ * Determina qué efecto ambiental aplica al omnipost según el nivel y rating del autor.
+ * Devuelve un string con el nombre del efecto o '' si no aplica ninguno.
+ */
+export function getStarEffect(authorLevel: number, rating: number): '' | 'difer' | 'inter' | 'opaque' | 'stormy' {
+  if (authorLevel >= 4.5 && rating >= 4.5) return 'inter';      // violeta
+  if (authorLevel >= 4.5 && rating <= 1) return 'opaque';       // plata
+  if (authorLevel >= 2.5 && rating >= 3.5 && rating <= 4) return 'difer';  // azul
+  if (authorLevel >= 2.5 && rating >= 1.5 && rating <= 2) return 'stormy'; // tormenta
+  return '';
+}
+
 export const ReviewCard: React.FC<ReviewCardProps> = ({
   review,
   currentUser,
@@ -65,6 +98,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   onReviewUpdated
 }) => {
   // Optimistic social states
+  const { promptSignup } = useSignupPrompt();
   const [likesCount, setLikesCount] = useState(review.like_count || 0);
   const [dislikesCount, setDislikesCount] = useState(review.dislike_count || 0);
   const [myReaction, setMyReaction] = useState<'like' | 'dislike' | null>(review.my_reaction || null);
@@ -72,6 +106,15 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   const [isReposted, setIsReposted] = useState(review.my_reposted || false);
   const [commentsCount, setCommentsCount] = useState(review.comment_count || 0);
   const latestComment = (review as any).latest_comment || null;
+  const [shimmerPlaying, setShimmerPlaying] = useState(false);
+
+const handleOmniHover = () => {
+  if (!starEffect || starEffect === 'opaque' || starEffect === 'stormy') return;
+  if (shimmerPlaying) return;
+  setShimmerPlaying(true);
+  playSound('shimmer', 0.15);
+  setTimeout(() => setShimmerPlaying(false), 800);
+};
     // 🚌 Combo: si tiene combo_reviews, es una combinación
   const isCombo = !!(review.combo_reviews && review.combo_reviews.length > 0);
   const allPatas = isCombo
@@ -101,6 +144,57 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
     currentUser?.id
   ]);
 
+  // Cargar reacciones del último comentario (para mostrarlas en el preview)
+  useEffect(() => {
+    const commentId = latestComment?.id;
+    if (!commentId) {
+      setLatestCommentReactions({ likes: 0, dislikes: 0, myReaction: null });
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingLatestReactions(true);
+
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('comment_likes')
+          .select('user_id, reaction')
+          .eq('comment_id', commentId);
+
+        if (cancelled) return;
+
+        if (data) {
+          const reactionsByUser: Record<string, 'like' | 'dislike'> = {};
+          data.forEach((r: any) => {
+            reactionsByUser[r.user_id] = r.reaction === 'dislike' ? 'dislike' : 'like';
+          });
+
+          let likes = 0;
+          let dislikes = 0;
+          Object.values(reactionsByUser).forEach((reaction) => {
+            if (reaction === 'dislike') dislikes++;
+            else likes++;
+          });
+
+          setLatestCommentReactions({
+            likes,
+            dislikes,
+            myReaction: currentUser ? reactionsByUser[currentUser.id] || null : null
+          });
+        }
+      } catch (err) {
+        // Silencioso: es solo para el preview
+      } finally {
+        if (!cancelled) setIsLoadingLatestReactions(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [latestComment?.id, currentUser?.id]);
+
   // Reactors modal state
   const [isReactorsModalOpen, setIsReactorsModalOpen] = useState(false);
 
@@ -110,6 +204,14 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newCommentText, setNewCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+
+    // Latest comment reactions (for the preview)
+  const [latestCommentReactions, setLatestCommentReactions] = useState<{
+    likes: number;
+    dislikes: number;
+    myReaction: 'like' | 'dislike' | null;
+  }>({ likes: 0, dislikes: 0, myReaction: null });
+  const [isLoadingLatestReactions, setIsLoadingLatestReactions] = useState(false);
 
   // Mention autocomplete state
   const [mentionOpen, setMentionOpen] = useState(false);
@@ -135,15 +237,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   const authorName = review.users?.username || 'viajero';
   const authorAvatar = review.users?.avatar_url;
   const authorLevel = review.users?.achievement_level || 0;
-  const starColor = authorLevel >= 4.5 && review.rating >= 4.5
-    ? 'text-violet-400'
-    : authorLevel >= 4.5 && review.rating <= 1
-      ? 'text-slate-300'
-      : authorLevel >= 2.5 && review.rating >= 3.5 && review.rating <= 4
-        ? 'text-sky-400'
-        : authorLevel >= 2.5 && review.rating >= 1.5 && review.rating <= 2
-          ? 'text-slate-300/70'
-          : 'text-emerald-400';
+  const starColor = getStarColor(authorLevel, review.rating);
   const isOwnReview = !!(currentUser && review.user_id === currentUser.id);
   const avatarBorderClass = review.users?.avatar_border === 'premium'
     ? 'avatar-border-premium'
@@ -162,6 +256,26 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
     const pataCompanyColor = pata.lines?.companies?.color || COMPANY_COLORS[pataCompanyName] || '#555f5e';
     const pataLineNumber = pata.lines?.number || '—';
 
+<span
+  className={
+    (review.users?.achievement_level || 0) >= 4.5 && pata.rating >= 4.5
+      ? 'star-effect-inter'
+      : (review.users?.achievement_level || 0) >= 4.5 && pata.rating <= 1
+        ? 'star-effect-opaquestar'
+        : (review.users?.achievement_level || 0) >= 3
+          ? 'star-effect-difer'
+          : (review.users?.achievement_level || 0) >= 4
+            ? 'star-effect-stormy'
+            : ''
+  }
+>
+  <StarRating
+    rating={pata.rating}
+    size="sm"
+    colorClass={getStarColor(review.users?.achievement_level || 0, pata.rating)}
+  />
+</span>
+
     return (
       <div key={pata.id} className="relative">
         {/* Card top: Line badge + Rating */}
@@ -179,7 +293,11 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
             </span>
           </button>
 
-          <StarRating rating={pata.rating} size="sm" colorClass="text-emerald-400" />
+          <StarRating
+  rating={pata.rating}
+  size="sm"
+  colorClass={getStarColor(review.users?.achievement_level || 0, pata.rating)}
+/>
         </div>
 
         {/* Route destination / bus car number */}
@@ -204,17 +322,31 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
           {pata.body}
         </p>
 
-        {/* Tags */}
+                {/* Tags (clickeables) */}
         {pata.tags && pata.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 my-2.5">
-            {pata.tags.map((t, idx) => (
-              <span
-                key={idx}
-                className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text-muted)]"
-              >
-                {t.emoji ? `${t.emoji} ` : ''}{t.label}
-              </span>
-            ))}
+            {pata.tags.map((t: any, idx) => {
+              const tagSlug = t.slug
+                || t.label
+                  .toLowerCase()
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .replace(/\s+/g, '-');
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigate('tag', tagSlug);
+                  }}
+                  className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-amber-400/15 hover:border-amber-400/40 hover:text-amber-300 transition-colors cursor-pointer"
+                  title={`Ver todos los omniposteos con la etiqueta "${t.label}"`}
+                >
+                  {t.emoji ? `${t.emoji} ` : ''}{t.label}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -242,9 +374,9 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   };
 
   // 1. Chiflido / Bajada toggle with instant optimistic update & clean deduplication
-  const handleReaction = async (kind: 'like' | 'dislike') => {
+    const handleReaction = async (kind: 'like' | 'dislike', event?: React.MouseEvent<HTMLButtonElement>) => {
     if (!currentUser) {
-      onNavigate('auth');
+      promptSignup(kind);
       return;
     }
     if (isOwnReview) return;
@@ -271,6 +403,46 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
       }
     }
 
+    // Detectar si estamos sumando o sacando la reacción
+    const isRemoving = myReaction === kind;
+
+    if (kind === 'like') {
+      playSound('chiflido', undefined, isRemoving);
+    } else {
+      playSound('bajada', undefined, isRemoving);
+    }
+
+
+        // 🎉 Confeti si es chiflido y el autor tiene nivel 4.5+
+    if (
+      kind === 'like' &&
+      review.users?.achievement_level &&
+      review.users.achievement_level >= 4.5 &&
+      event
+    ) {
+      try {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const x = (rect.left + rect.width / 2) / window.innerWidth;
+        const y = (rect.top + rect.height / 2) / window.innerHeight;
+        fireChiflidoConfettiAt(x, y, review.users.achievement_level);
+            // 🎉 Confeti si es chiflido y el autor tiene nivel 4.5+
+    if (
+      kind === 'like' &&
+      review.users?.achievement_level &&
+      review.users.achievement_level >= 4.5 &&
+      event
+    ) {
+      try {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const x = (rect.left + rect.width / 2) / window.innerWidth;
+        const y = (rect.top + rect.height / 2) / window.innerHeight;
+        fireChiflidoConfettiAt(x, y, review.users.achievement_level);
+        playSound('ding', 0.2);
+      } catch {}
+    }
+      } catch {}
+    }
+
     try {
       // Check existing rows in DB without maybeSingle to handle any historical duplicates cleanly
       const { data: existingRows } = await supabase
@@ -291,10 +463,11 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
 
         // Dynamically remove notification if author is someone else
         if (review.user_id && review.user_id !== currentUser.id) {
+          const notifKind = kind === 'dislike' ? 'bajada' : 'chiflido';
           await removeNotificationsByReviewAndKind(
             review.user_id,
             review.id,
-            kind,
+            notifKind,
             `@${currentUser.username}`
           );
         }
@@ -313,28 +486,17 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
           reaction: kind
         });
 
-        if (review.user_id && review.user_id !== currentUser.id) {
-          if (existingRows && existingRows.length > 0) {
-            // Delete previous notification
-            await removeNotificationsByReviewAndKind(
-              review.user_id,
-              review.id,
-              existingRows[0].reaction,
-              `@${currentUser.username}`
-            );
-          }
-
-          const bodyText =
-            kind === 'like'
-              ? `@${currentUser.username} te pegó un chiflido en tu omniposteo`
-              : `@${currentUser.username} te dio una bajada en tu omniposteo`;
-
-          await pushNotification({
-            user_id: review.user_id,
-            review_id: review.id,
-            kind: kind,
-            body: bodyText
-          });
+        // 👇 La notificación la genera el trigger SQL automáticamente.
+        // Solo limpiamos notificaciones previas si el usuario cambió de reacción.
+        // ⚠️ El trigger SQL guarda kind='chiflido'/'bajada', no 'like'/'dislike'.
+        if (review.user_id && review.user_id !== currentUser.id && existingRows && existingRows.length > 0) {
+          const previousKind = existingRows[0].reaction === 'dislike' ? 'bajada' : 'chiflido';
+          await removeNotificationsByReviewAndKind(
+            review.user_id,
+            review.id,
+            previousKind,
+            `@${currentUser.username}`
+          );
         }
       }
     } catch (err) {
@@ -348,7 +510,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   // 2. Transbordo toggle with instant optimistic update & clean deduplication
   const handleToggleRepost = async () => {
     if (!currentUser) {
-      onNavigate('auth');
+      promptSignup('repost');
       return;
     }
     if (isOwnReview) return;
@@ -359,6 +521,9 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
     // Optimistic update
     setIsReposted(!wasReposted);
     setRepostsCount(wasReposted ? Math.max(0, previousCount - 1) : previousCount + 1);
+
+    // isReposted es el estado ACTUAL; si ya estaba reposteado, estamos sacándolo
+    playSound('transbordo', undefined, wasReposted);
 
     try {
       const { data: existingRows } = await supabase
@@ -380,7 +545,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
           await removeNotificationsByReviewAndKind(
             review.user_id,
             review.id,
-            'repost',
+            'transbordo',
             `@${currentUser.username}`
           );
         }
@@ -391,14 +556,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
           user_id: currentUser.id
         });
 
-        if (review.user_id && review.user_id !== currentUser.id) {
-          await pushNotification({
-            user_id: review.user_id,
-            review_id: review.id,
-            kind: 'repost',
-            body: `@${currentUser.username} hizo transbordo de tu omniposteo`
-          });
-        }
+        // 👇 La notificación la genera el trigger SQL automáticamente.
       }
     } catch (err) {
       setIsReposted(wasReposted);
@@ -544,6 +702,102 @@ const handleCommentReaction = async (commentId: string, kind: 'like' | 'dislike'
   }
 };
 
+  // Reacción desde el preview del último comentario (sin abrir el acordeón)
+  const handleLatestCommentReaction = async (kind: 'like' | 'dislike') => {
+    if (!currentUser) {
+      promptSignup('comment');
+      return;
+    }
+    const commentId = latestComment?.id;
+    if (!commentId) return;
+    if (latestComment.user_id === currentUser.id) return; // no self-reaction
+
+    const previousReaction = latestCommentReactions.myReaction;
+    const previousLikes = latestCommentReactions.likes;
+    const previousDislikes = latestCommentReactions.dislikes;
+
+    // Optimistic update
+    let newLikes = previousLikes;
+    let newDislikes = previousDislikes;
+    let newReaction: 'like' | 'dislike' | null = kind;
+
+    if (previousReaction === kind) {
+      newReaction = null;
+      if (kind === 'like') newLikes = Math.max(0, newLikes - 1);
+      else newDislikes = Math.max(0, newDislikes - 1);
+    } else {
+      if (kind === 'like') {
+        newLikes += 1;
+        if (previousReaction === 'dislike') newDislikes = Math.max(0, newDislikes - 1);
+      } else {
+        newDislikes += 1;
+        if (previousReaction === 'like') newLikes = Math.max(0, newLikes - 1);
+      }
+    }
+
+    setLatestCommentReactions({
+      likes: newLikes,
+      dislikes: newDislikes,
+      myReaction: newReaction
+    });
+
+    // Si el acordeón está abierto, sincronizamos la lista también
+    if (commentsOpen) {
+      setCommentsList((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? { ...c, like_count: newLikes, dislike_count: newDislikes, my_reaction: newReaction }
+            : c
+        )
+      );
+    }
+
+    const isRemoving = latestCommentReactions.myReaction === kind;
+    if (kind === 'like') playSound('chiflido', undefined, isRemoving);
+    else playSound('bajada', undefined, isRemoving);
+
+    try {
+      const { data: existing } = await supabase
+        .from('comment_likes')
+        .select('id, reaction')
+        .eq('comment_id', commentId)
+        .eq('user_id', currentUser.id);
+
+      const hasSame = existing?.some((r: any) => r.reaction === kind);
+
+      await supabase
+        .from('comment_likes')
+        .delete()
+        .eq('comment_id', commentId)
+        .eq('user_id', currentUser.id);
+
+      if (!hasSame) {
+        await supabase.from('comment_likes').insert({
+          comment_id: commentId,
+          user_id: currentUser.id,
+          reaction: kind
+        });
+      }
+    } catch {
+      // Revert
+      setLatestCommentReactions({
+        likes: previousLikes,
+        dislikes: previousDislikes,
+        myReaction: previousReaction
+      });
+
+      if (commentsOpen) {
+        setCommentsList((prev) =>
+          prev.map((c) =>
+            c.id === commentId
+              ? { ...c, like_count: previousLikes, dislike_count: previousDislikes, my_reaction: previousReaction }
+              : c
+          )
+        );
+      }
+    }
+  };
+
   // Mention autocomplete handlers
   const handleCommentInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -630,7 +884,7 @@ const handleCommentReaction = async (commentId: string, kind: 'like' | 'dislike'
   const handleSendComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) {
-      onNavigate('auth');
+      promptSignup('comment');
       return;
     }
 
@@ -662,6 +916,8 @@ const handleCommentReaction = async (commentId: string, kind: 'like' | 'dislike'
     setCommentsCount((prev) => prev + 1);
     setNewCommentText('');
 
+playSound('charla');
+
     try {
       const { data, error } = await supabase
         .from('comments')
@@ -679,16 +935,8 @@ const handleCommentReaction = async (commentId: string, kind: 'like' | 'dislike'
           prev.map((c) => (c.id === tempId ? { ...c, id: data.id, created_at: data.created_at } : c))
         );
 
-        // Notify author of omnipost (charlas de parada)
-        if (review.user_id && review.user_id !== currentUser.id) {
-          const previewText = text.slice(0, 50);
-          await pushNotification({
-            user_id: review.user_id,
-            kind: 'comment',
-            body: `@${currentUser.username} comentó en tu charla de parada: "${previewText}${text.length > 50 ? '…' : ''}"`,
-            review_id: review.id
-          });
-        }
+                // 👇 La notificación la genera el trigger SQL automáticamente.
+        // Solo nos encargamos de las menciones (@usuario).
 
         // Notify mentioned users (@usuario)
         const mentions: string[] = Array.from(
@@ -832,13 +1080,72 @@ const handleCommentReaction = async (commentId: string, kind: 'like' | 'dislike'
     );
   };
 
+  // 🎨 Efecto ambiental del omnipost según el tipo de estrella del autor
+  const starEffect = getStarEffect(review.users?.achievement_level || 0, review.rating);
+
   return (
-    <article className="review-card bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-sm hover:border-[var(--border-soft)] transition-all">
+<article
+  onMouseEnter={handleOmniHover}
+  className={`review-card bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-sm hover:border-[var(--border-soft)] transition-all relative ${
+    starEffect ? `star-effect-${starEffect}-ambient` : ''
+  }`}
+  style={{ 
+    // 🔧 Fix mobile: forzar GPU layer para que las animaciones corran
+    transform: 'translateZ(0)',
+    backfaceVisibility: 'hidden'
+  }}
+>
+      {/* Capa de efecto ambiental (se renderiza solo si hay efecto) */}
+      {starEffect && (
+        <div className={`star-effect-layer star-effect-${starEffect}-layer`} aria-hidden="true">
+          {/* Los elementos hijos dependen del efecto, se generan abajo */}
+          {starEffect === 'inter' && (
+            <>
+              <span className="star-particle star-particle-1" />
+              <span className="star-particle star-particle-2" />
+              <span className="star-particle star-particle-3" />
+              <span className="star-particle star-particle-4" />
+              <span className="star-particle star-particle-5" />
+            </>
+          )}
+          {starEffect === 'stormy' && (
+            <>
+              <span className="storm-flash storm-flash-1" />
+              <span className="storm-flash storm-flash-2" />
+              <span className="storm-crack storm-crack-1" />
+            </>
+          )}
+          {starEffect === 'difer' && (
+            <>
+              <span className="difer-spark difer-spark-1" />
+              <span className="difer-spark difer-spark-2" />
+              <span className="difer-spark difer-spark-3" />
+            </>
+          )}
+          {starEffect === 'opaque' && (
+            <>
+              <span className="opaque-fog opaque-fog-1" />
+              <span className="opaque-fog opaque-fog-2" />
+            </>
+          )}
+        </div>
+      )}
       {/* Transbordo badge if reposted */}
+            {/* Transbordo badge if reposted */}
       {review.reposted_by && (
-        <div className="px-3.5 py-1.5 bg-emerald-500/10 border-b border-emerald-500/20 text-xs text-emerald-400 flex items-center gap-1.5 font-medium">
+        <div
+          className={`px-3.5 py-1.5 border-b text-xs flex items-center gap-1.5 font-medium ${
+            (review as any).is_own_repost
+              ? 'bg-amber-400/10 border-amber-400/30 text-amber-300'
+              : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+          }`}
+        >
           <Repeat className="w-3.5 h-3.5" />
-          <span>Transbordo de @{review.reposted_by}</span>
+          <span>
+            {(review as any).is_own_repost
+              ? 'Tu transbordo · lo compartiste a tu perfil'
+              : `Transbordo de @${review.reposted_by}`}
+          </span>
         </div>
       )}
 
@@ -891,8 +1198,8 @@ const handleCommentReaction = async (commentId: string, kind: 'like' | 'dislike'
         {/* Flat Buttons Action Bar (Chiflidos, Bajadas, Charlas, Transbordo, Compartir) */}
         <div className="flex flex-wrap items-center gap-1.5 pt-2.5 mt-1 border-t border-[var(--border-soft)]">
           {/* Chiflido (Likes) */}
-          <button
-            onClick={() => handleReaction('like')}
+            <button
+            onClick={(e) => handleReaction('like', e)}
             disabled={isOwnReview}
             className={`flat-btn flat-btn-chiflido ${myReaction === 'like' ? 'active' : ''}`}
             title={isOwnReview ? 'No podés chiflar tu propio viaje' : 'Chiflido (aplauso / me gusta)'}
@@ -954,46 +1261,95 @@ const handleCommentReaction = async (commentId: string, kind: 'like' | 'dislike'
           )}
         </div>
 
-        {/* Última charla preview */}
+             {/* Última charla preview con reacciones */}
         {!commentsOpen && latestComment && (
-          <button
-            type="button"
-            onClick={() => handleToggleComments()}
-            className="w-full mt-2.5 p-2.5 rounded-lg bg-[var(--surface-2)]/60 hover:bg-[var(--surface-2)] border border-[var(--border)] hover:border-sky-400/40 transition-all text-left cursor-pointer group"
-          >
-            <div className="flex items-start gap-2">
-              <Signpost className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <span className="text-[11px] font-semibold text-[var(--text)]">
-                    @{latestComment.users?.username || 'viajero'}
-                  </span>
-                  {latestComment.users?.profile_flair && (
-                    <span
-                      className={`profile-flair profile-flair-${latestComment.users.profile_flair
-                        .toLowerCase()
-                        .normalize('NFD')
-                        .replace(/[\u0300-\u036f]/g, '')
-                        .replace(/ó/g, 'o')}`}
-                    >
-                      {latestComment.users.profile_flair}
+          <div className="mt-2.5 rounded-lg bg-[var(--surface-2)]/60 border border-[var(--border)] hover:border-sky-400/40 transition-all overflow-hidden group">
+            {/* Contenido clickeable para abrir acordeón */}
+            <button
+              type="button"
+              onClick={() => handleToggleComments()}
+              className="w-full p-2.5 text-left cursor-pointer"
+            >
+              <div className="flex items-start gap-2">
+                <Signpost className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-[11px] font-semibold text-[var(--text)]">
+                      @{latestComment.users?.username || 'viajero'}
+                    </span>
+                    {latestComment.users?.profile_flair && (
+                      <span
+                        className={`profile-flair profile-flair-${latestComment.users.profile_flair
+                          .toLowerCase()
+                          .normalize('NFD')
+                          .replace(/[\u0300-\u036f]/g, '')
+                          .replace(/ó/g, 'o')}`}
+                      >
+                        {latestComment.users.profile_flair}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-[var(--text-dim)]">
+                      {formatTime24h(latestComment.created_at)} hs
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--text-muted)] line-clamp-2 leading-snug">
+                    {latestComment.body}
+                  </p>
+                  {commentsCount > 1 && (
+                    <span className="text-[10px] text-sky-400 font-semibold mt-1 inline-block group-hover:underline">
+                      Ver las {commentsCount} charlas de parada →
                     </span>
                   )}
-                  <span className="text-[10px] text-[var(--text-dim)]">
-                    {formatTime24h(latestComment.created_at)} hs
-                  </span>
                 </div>
-                <p className="text-[11px] text-[var(--text-muted)] line-clamp-2 leading-snug">
-                  {latestComment.body}
-                </p>
-                {commentsCount > 1 && (
-                  <span className="text-[10px] text-sky-400 font-semibold mt-1 inline-block group-hover:underline">
-                    Ver las {commentsCount} charlas de parada →
-                  </span>
-                )}
               </div>
+            </button>
+
+            {/* Barra de reacciones del último comentario */}
+            <div className="flex items-center gap-1.5 px-2.5 pb-2 pt-0.5 border-t border-[var(--border-soft)]">
+              <button
+                type="button"
+                disabled={latestComment.user_id === currentUser?.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleLatestCommentReaction('like');
+                }}
+                className={`flat-btn flat-btn-chiflido text-[10px] py-0.5 px-1.5 ${latestCommentReactions.myReaction === 'like' ? 'active' : ''}`}
+                title={
+                  latestComment.user_id === currentUser?.id
+                    ? 'No podés chiflar tu propia charla'
+                    : 'Chiflido a la charla'
+                }
+              >
+                <span className="text-[10px] leading-none">🗣️</span>
+                <span>{latestCommentReactions.likes}</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={latestComment.user_id === currentUser?.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleLatestCommentReaction('dislike');
+                }}
+                className={`flat-btn flat-btn-bajada text-[10px] py-0.5 px-1.5 ${latestCommentReactions.myReaction === 'dislike' ? 'active' : ''}`}
+                title={
+                  latestComment.user_id === currentUser?.id
+                    ? 'No podés dar bajada a tu propia charla'
+                    : 'Bajada a la charla'
+                }
+              >
+                <ArrowDown className="w-2.5 h-2.5 stroke-[2.5]" />
+                <span>{latestCommentReactions.dislikes}</span>
+              </button>
+
+              {/* Contador de comentarios como referencia */}
+              {commentsCount > 1 && (
+                <span className="ml-auto text-[10px] text-[var(--text-dim)] font-mono">
+                  {commentsCount} charlas
+                </span>
+              )}
             </div>
-          </button>
+          </div>
         )}
 
         {/* Expandable Charlas de Parada (Comments section) */}

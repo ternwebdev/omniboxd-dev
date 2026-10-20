@@ -6,6 +6,7 @@ export interface AppNotification {
   kind: 'like' | 'dislike' | 'repost' | 'comment' | 'mention' | string;
   body: string;
   review_id?: string | null;
+  is_combo?: boolean;
   read_at?: string | null;
   created_at: string;
   review?: any;
@@ -146,14 +147,16 @@ export async function pushNotification(payload: {
   body: string;
   review_id?: string;
   comment_id?: string;
+  is_combo?: boolean;
 }) {
   const notifId = `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  const item: AppNotification = {
+    const item: AppNotification = {
     id: notifId,
     user_id: payload.user_id,
     kind: payload.kind,
     body: payload.body,
     review_id: payload.review_id || null,
+    is_combo: payload.is_combo || false,
     read_at: null,
     created_at: new Date().toISOString()
   };

@@ -611,6 +611,34 @@ useEffect(() => {
 
       {/* Contacto y el Proyecto */}
       <article id="manual-contacto" className="scroll-mt-20 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 shadow-sm space-y-4">
+        
+        <div className="flex flex-wrap gap-2 mb-3">
+  <a
+    href="https://instagram.com/omniboxd.app"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flat-btn text-xs py-1.5 px-3 hover:text-pink-400 border-[var(--border)] hover:border-pink-400/50 inline-flex items-center gap-2 transition-colors"
+  >
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+    </svg>
+    <span>@omniboxd.app</span>
+  </a>
+  <a
+    href="https://twitter.com/omniboxd"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flat-btn text-xs py-1.5 px-3 hover:text-sky-400 border-[var(--border)] hover:border-sky-400/50 inline-flex items-center gap-2 transition-colors"
+  >
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+    </svg>
+    <span>@omniboxd</span>
+  </a>
+</div>
+        
         <div>
           <h2 className="font-display font-bold text-sm text-amber-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
             <Mail className="w-4 h-4" />
@@ -659,6 +687,7 @@ useEffect(() => {
             </div>
           )}
         </div>
+
 
         {/* Equipo fundador */}
         <div className="border-t border-[var(--border)] pt-3 space-y-3">
@@ -717,6 +746,42 @@ useEffect(() => {
               </div>
             </div>
           </div>
+
+          <div className="border-t border-[var(--border)] pt-3 space-y-3">
+  <h3 className="text-xs font-display font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+    Seguinos en redes
+  </h3>
+  <div className="flex flex-wrap gap-2">
+    <a
+      href="https://instagram.com/omniboxd.app"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 text-xs text-[var(--text-muted)] hover:text-pink-400 transition-colors"
+    >
+      <div className="w-7 h-7 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center">
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+        </svg>
+      </div>
+      <span className="font-mono">@omniboxd.app</span>
+    </a>
+    <a
+      href="https://twitter.com/omniboxd"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 text-xs text-[var(--text-muted)] hover:text-sky-400 transition-colors"
+    >
+      <div className="w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+        </svg>
+      </div>
+      <span className="font-mono">@omniboxd</span>
+    </a>
+  </div>
+</div>
         </div>
         </article>
       </div>{/* cierra lg:col-span-9 */}

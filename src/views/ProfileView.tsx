@@ -20,18 +20,15 @@ import {
   MapPin,
   Cake,
   Palette,
+  Sparkles,
+  Volume2
 } from 'lucide-react';
 import { UserProfile, ReviewItem, BirthDateVisibility, GenderVisibility } from '../types';
 import { COMPANY_COLORS } from '../lib/constants';
+import { useSignupPrompt } from '../lib/signupPrompt';
+import { isSoundsEnabled, setSoundsEnabled, preloadSounds } from '../lib/sounds';
 
-export const OMNIBOXD_PALETTE_COLORS = [
-  { id: 'yellow', name: 'Amarillo Omniboxd', hex: '#F59E0B', textHex: '#000000', border: 'border-amber-400', desc: 'Identidad y logo' },
-  { id: 'red', name: 'Rojo Ómnibus', hex: '#E11D48', textHex: '#ffffff', border: 'border-rose-500', desc: 'Expresos y rápidas' },
-  { id: 'blue', name: 'Azul Eléctrico', hex: '#2563EB', textHex: '#ffffff', border: 'border-blue-500', desc: 'Troncales e inter' },
-  { id: 'green', name: 'Verde Terminal', hex: '#16A34A', textHex: '#ffffff', border: 'border-emerald-500', desc: 'Locales y plazas' },
-  { id: 'orange', name: 'Naranja Boleto', hex: '#EA580C', textHex: '#ffffff', border: 'border-orange-500', desc: 'Boleto STM y conexión' },
-  { id: 'asphalt', name: 'Asfalto Nocturno', hex: '#1E293B', textHex: '#ffffff', border: 'border-slate-500', desc: 'Pavimento y trasnoche' },
-];
+import { OMNIBOXD_PALETTE_COLORS } from '../lib/palette';
 
 const USERNAME_COLORS = OMNIBOXD_PALETTE_COLORS.map((color) => color.hex);
 
@@ -77,6 +74,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onSignOut,
   onProfileUpdated
 }) => {
+  const { promptSignup } = useSignupPrompt();  
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState<'omniposts' | 'transbordos'>('omniposts');
   const [userReviews, setUserReviews] = useState<ReviewItem[]>([]);
@@ -214,6 +212,9 @@ useEffect(() => {
 
   // Load target profile
   useEffect(() => {
+
+    if (!targetUsername && !currentUser) return;
+
     let isMounted = true;
 
     const loadProfileData = async () => {
@@ -299,7 +300,7 @@ const [revs, reps, followersRes, followingRes] = await Promise.all([
   return () => {
     isMounted = false;
   };
-}, [targetUsername]);  // 👈 SOLO targetUsername, NADA MÁS
+}, [targetUsername, currentUser?.id]);
 
   // Update dynamic social preview metadata when profile loads
   useEffect(() => {
@@ -321,7 +322,7 @@ const [revs, reps, followersRes, followingRes] = await Promise.all([
   // Handle follow / unfollow
   const handleToggleFollow = async () => {
     if (!currentUser || !profile) {
-      onNavigate('auth');
+      promptSignup('follow');
       return;
     }
 
@@ -995,18 +996,12 @@ const handleSavePinnedBadges = async (badges: string[]) => {
         localStorage.removeItem(`omniboxd_dismissed_notifs_${profile.id}`);
       } catch {}
 
-      // 2. Anonymize/delete profile record in public users table
-      try {
-        const { error: delErr } = await supabase.from('users').delete().eq('id', profile.id);
-        if (delErr) {
-          // If RLS prevents row deletion, anonymize it
-          await supabase.from('users').update({
-            username: `usuario_${profile.id.slice(0, 6)}`,
-            bio: 'Esta cuenta ha sido eliminada por el usuario.',
-            avatar_url: null
-          }).eq('id', profile.id);
-        }
-      } catch {}
+      // 2. Borrar la cuenta (usa RPC SECURITY DEFINER que cascadea)
+      const { error: delErr } = await supabase.rpc('delete_own_account');
+      if (delErr) {
+        console.warn('Error al eliminar cuenta:', delErr.message);
+        throw new Error('No se pudo eliminar la cuenta. Intentá de nuevo.');
+      }
 
       // 3. Sign out session & clean up
       await supabase.auth.signOut();
@@ -1232,6 +1227,30 @@ const handleSavePinnedBadges = async (badges: string[]) => {
                         <Edit3 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                         <span>Editar bio</span>
                       </button>
+                                            <button
+                        onClick={() => {
+                          try {
+                            const isDisabled = localStorage.getItem('omniboxd_star_effects_disabled') === '1';
+                            const next = !isDisabled;
+                            if (next) {
+                              localStorage.setItem('omniboxd_star_effects_disabled', '1');
+                              document.body.classList.add('no-star-effects');
+                            } else {
+                              localStorage.removeItem('omniboxd_star_effects_disabled');
+                              document.body.classList.remove('no-star-effects');
+                            }
+                          } catch {}
+                          setSettingsOpen(false);
+                        }}
+                        className="w-full px-3 py-2 rounded-lg hover:bg-[var(--surface-2)] text-[var(--text)] flex items-center gap-2 cursor-pointer font-medium"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                        <span>
+                          {typeof window !== 'undefined' && localStorage.getItem('omniboxd_star_effects_disabled') === '1'
+                            ? 'Activar efectos de estrellas'
+                            : 'Desactivar efectos de estrellas'}
+                        </span>
+                      </button>
                       <button
                         onClick={() => {
                           setLocationInput(profile.location || '');
@@ -1243,6 +1262,24 @@ const handleSavePinnedBadges = async (badges: string[]) => {
                         <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                         <span>Editar ubicación</span>
                       </button>
+
+<button
+  onClick={() => {
+    const next = !isSoundsEnabled();
+    setSoundsEnabled(next);
+    if (next) preloadSounds();
+    setSettingsOpen(false);
+    // Forzar re-render para que el label cambie
+    setIsChangingPass((v) => v); // truco feo pero funciona
+  }}
+  className="w-full px-3 py-2 rounded-lg hover:bg-[var(--surface-2)] text-[var(--text)] flex items-center gap-2 cursor-pointer font-medium"
+>
+  <Volume2 className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+  <span>
+    {isSoundsEnabled() ? 'Desactivar sonidos' : 'Activar sonidos'}
+  </span>
+</button>
+
                       <button
                         onClick={() => {
                           setBirthDateInput(profile.birth_date || '');
@@ -2489,8 +2526,8 @@ const handleSavePinnedBadges = async (badges: string[]) => {
                   Eliminar cuenta
                 </h3>
                 <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
-                  Esta acción es irreversible. Se cerrará tu sesión y se eliminarán tus datos de perfil en Omniboxd.
-                </p>
+  Esta acción es <strong className="text-red-400">irreversible</strong>. Se eliminarán tu cuenta, tus omniposteos, transbordos, charlas de parada y todo tu contenido asociado, en cumplimiento con la Ley N° 18.331 de Protección de Datos Personales.
+</p>
               </div>
             </div>
 
